@@ -120,7 +120,9 @@ export function pointerStats(): PointerStats {
     click(x, y, t, isTrusted, centre) {
       seen(isTrusted, 'mouse');
       clicks++;
-      if (lastT < 0 || t - lastT > 500 || Math.hypot(x - lastX, y - lastY) > 30) teleports++;
+      // A real click happens where the pointer is. People often rest the mouse before clicking, so
+      // time since the last move proves nothing; a click far from the pointer's last position does.
+      if (lastT < 0 || Math.hypot(x - lastX, y - lastY) > 30) teleports++;
       if (centre) centres++;
     },
     summary: () => ({

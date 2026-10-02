@@ -60,10 +60,10 @@ describe('pointerStats', () => {
     p.move(200, 200, 1000, true, 'mouse');
     p.click(205, 200, 1100, true, false); // near and recent
     p.click(500, 500, 1200, true, false); // far from the last move
-    p.click(205, 200, 2000, true, false); // stale: no move in the last 500 ms
+    p.click(205, 200, 5000, true, false); // mouse rested 4 s before clicking: still where the pointer is
     const s = p.summary();
     expect(s.clicks).toBe(4);
-    expect(s.teleportClicks).toBe(3);
+    expect(s.teleportClicks).toBe(2);
     expect(s.centerClicks).toBe(1);
   });
 

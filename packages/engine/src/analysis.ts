@@ -149,10 +149,11 @@ export function analyze(input: AnalysisInput): Analysis {
     if (pointer.events >= 10 && pointer.straightRatio > 0.8 && pointer.speedCv < 0.25) {
       add('pointer_linear', 'behaviour', WEIGHTS.pointer_linear);
     }
-    if (pointer.clicks >= 2 && pointer.teleportClicks / pointer.clicks >= 0.5) {
+    // Click patterns need at least 3 clicks, so one odd click can't count against a person.
+    if (pointer.clicks >= 3 && pointer.teleportClicks / pointer.clicks >= 0.5) {
       add('pointer_teleport', 'behaviour', WEIGHTS.pointer_teleport);
     }
-    if (pointer.clicks >= 2 && pointer.centerClicks / pointer.clicks >= 0.5) {
+    if (pointer.clicks >= 3 && pointer.centerClicks / pointer.clicks >= 0.5) {
       add('click_dead_center', 'behaviour', WEIGHTS.click_dead_center);
     }
     if (

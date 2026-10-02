@@ -184,3 +184,22 @@ a {
 .spacer {
   height: 40vh;
 }
+
+details {
+  margin-top: 12px;
+}
+
+summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+pre.record {
+  max-height: 320px;
+  overflow: auto;
+  margin: 10px 0 0;
+  padding: 10px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}

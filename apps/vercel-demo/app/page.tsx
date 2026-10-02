@@ -142,11 +142,30 @@ export default function Page() {
   );
 }
 
+const VERDICT_TEXT: Record<string, string> = {
+  human: 'Confidently human.',
+  bot: 'Looks automated.',
+  uncertain:
+    'Not enough evidence either way yet. Keep using the page normally (move, scroll, type) and score again.',
+  verified_agent: 'A self-identifying AI agent or crawler.',
+};
+
 function Reasons({ record }: { record: DecisionRecord }) {
+  const [copied, setCopied] = useState(false);
+  const json = JSON.stringify(record, null, 2);
+  const copy = async () => {
+    await navigator.clipboard.writeText(json);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   return (
     <>
+      <p>
+        <strong>{record.realHuman.toFixed(2)}</strong> ·{' '}
+        {VERDICT_TEXT[record.verdict] ?? record.verdict}
+      </p>
       <p className="small muted">
-        Engine <code>{record.engine}</code> · kind <code>{record.kind}</code> · TLS fingerprint{' '}
+        Update #{record.seq} · engine <code>{record.engine}</code> · TLS fingerprint{' '}
         <code>{record.server.ja4 ?? 'not available'}</code>
       </p>
       {record.reasons.length === 0 ? (
@@ -163,6 +182,16 @@ function Reasons({ record }: { record: DecisionRecord }) {
           })}
         </ul>
       )}
+      <details>
+        <summary>Show full record</summary>
+        <p className="small muted">
+          Everything the server stored for this session: summaries only, never what you typed.
+        </p>
+        <button type="button" className="secondary" onClick={() => void copy()}>
+          {copied ? 'Copied' : 'Copy record'}
+        </button>
+        <pre className="record">{json}</pre>
+      </details>
     </>
   );
 }

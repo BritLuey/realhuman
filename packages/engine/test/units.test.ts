@@ -451,3 +451,26 @@ describe('embedded browsers', () => {
     expect(analysis.evidence.map((e) => e.code)).not.toContain('headless_markers');
   });
 });
+
+describe('click patterns', () => {
+  it('need at least 3 clicks before they count', () => {
+    const server = deriveServerFacts(
+      browserHeaders(),
+      { ja4: CHROME_JA4, ipTimezone: null },
+      null,
+      null,
+    );
+    const signals = humanSignals();
+    const pointer = signals.pointer;
+    if (!pointer) throw new Error('fixture');
+    const twoClicks = {
+      ...signals,
+      pointer: { ...pointer, clicks: 2, teleportClicks: 2, centerClicks: 2 },
+    };
+    const codes = analyze({ signals: twoClicks, server, ja4Lists: noLists }).evidence.map(
+      (e) => e.code,
+    );
+    expect(codes).not.toContain('pointer_teleport');
+    expect(codes).not.toContain('click_dead_center');
+  });
+});
