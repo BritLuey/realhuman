@@ -1,9 +1,5 @@
 # HTTP API
 
-> [!NOTE]
-> **Planned: milestone M2.** Request and response **bodies are available now** as schemas in
-> `@realhuman/schema` (`InitResponseSchema`, `PayloadSchema`, `ClientResultSchema`).
-
 The browser SDK and your server talk through three endpoints under a common prefix, the `endpoint`
 option (default `/api/realhuman`). You never need to call these yourself; this page is for security reviews,
 custom clients and debugging.

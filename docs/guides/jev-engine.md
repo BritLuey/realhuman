@@ -1,8 +1,5 @@
 # Jev engine
 
-> [!NOTE]
-> **Planned: milestone M5** (`@realhuman/jev`). This page describes the intended API.
-
 By default, realHuman decides using its built-in **algorithmic** engine: a set of weighted rules. As an
 alternative, you can let **Jev**, TypeSafe AI's decision model, make the call.
 
@@ -91,11 +88,17 @@ jev({
 | `vercel-ai-gateway` | `typesafe-ai/jev` |
 | `openrouter` | `typesafe/jev-latest` |
 | `typesafe` | `jev-latest` |
+| `ai-sdk` | pass an AI SDK model, e.g. `gateway.evaluationModel('typesafe-ai/jev')` |
+
+> [!WARNING]
+> **OpenRouter's evaluation endpoint is not yet verified.** realHuman assumes TypeSafe's API shape at
+> `https://openrouter.ai/api/v1/systemone`. If OpenRouter publishes a different route, override it with `baseUrl`.
 
 ### Failover
 
 realHuman moves to the next provider in `failover` only when a provider is **unavailable**: HTTP 402
-(billing), 429 (rate limit), 5xx, or a timeout. If every provider fails, the **algorithmic engine** answers.
+(billing), 429 (rate limit), 5xx, or a network error. A bad request (other 4xx) or a refusal stops immediately.
+All providers share one `timeoutMs` budget. If every provider fails, or the budget runs out, the **algorithmic engine** answers.
 The record then says `engine: "algorithmic-fallback"` and includes the reason code `jev_unavailable`, so
 your data never has gaps.
 
@@ -103,16 +106,19 @@ your data never has gaps.
 
 - **`provider: 'ai-sdk'`** with `model: gateway.evaluationModel('typesafe-ai/jev')` (or any AI SDK
   evaluation model) uses the AI SDK's `experimental_evaluate`. This needs the `ai` package, version 7 or later.
-- **A custom provider** is an object with an `evaluate(request, { signal })` method that returns Jev-shaped
-  answers. Use it for proxies or new providers.
+  The AI SDK reads its own API key, so `apiKeyEnv` is ignored, and `'ai-sdk'` can't be used in `failover`.
+- **A custom provider** is an object with a `name` and an `evaluate(request, { signal, env })` method that returns
+  answers such as `{ human: { type: 'boolean', probability: 0.93 }, kind: { type: 'choice', choice: 'human' } }`.
+  Throw `JevProviderError` with `retryable: true` to let failover move on. Use it for proxies or new providers.
 
 ## What realHuman sends to Jev
 
-**Not sent:** IP addresses, raw user-agent strings, your `context` join keys, or anything typed or clicked.
+**Not sent:** IP addresses, raw user-agent strings, the raw JA4 fingerprint or its hashes, the browser's time
+zone name, session ids, your `context` join keys, or anything typed or clicked.
 
 **Sent:** the same signal summaries described in [Signals](../reference/signals.md), the network
-consistency checks (for example "TLS fingerprint matches the claimed browser: yes/no") and the parts of the
-JA4 fingerprint, together with two questions:
+consistency checks (for example "TLS fingerprint matches the claimed browser: yes/no") the parts of the
+JA4 fingerprint, and the algorithmic engine's evidence codes with their weights, together with two questions:
 
 | Question | Type | Becomes |
 |---|---|---|
@@ -133,7 +139,7 @@ Even with `engine: jev(…)`:
 ## Cost
 
 Jev is billed per input token; at the time of writing, output is free. A realHuman request is roughly
-1,500 input tokens. At the published TypeSafe rate of **$0.042 per million input tokens**, that's about
+2,500 characters, comfortably under 1,500 input tokens. At the published TypeSafe rate of **$0.042 per million input tokens**, that's at most about
 **$0.06 per 1,000 calls**, or **$63 per million**. Each update (`seq`) is one call, and provider prices
 may differ. Check your provider's current pricing.
 
@@ -147,5 +153,6 @@ To reduce cost:
 
 With Jev, signal summaries are sent to your chosen provider, plus Vercel or OpenRouter if they sit in
 between. Add them to your list of data processors (subprocessors) and check their data-retention terms.
-`zeroDataRetention: true` asks Vercel AI Gateway to route only to providers that don't retain data. See
+`zeroDataRetention: true` asks Vercel AI Gateway to route only to providers that don't retain data. Over
+OpenRouter or TypeSafe directly no such flag is sent, so check their retention terms. See
 [Privacy & compliance](../operations/privacy-and-compliance.md#jev-engine).

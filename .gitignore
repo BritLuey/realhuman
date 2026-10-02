@@ -11,3 +11,4 @@ coverage/
 Thumbs.db
 .vercel/
 cdk.out/
+tools/bot-lab/results/

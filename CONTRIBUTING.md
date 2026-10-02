@@ -36,10 +36,16 @@ almost always pass.
 ```
 realhuman/
 ├── packages/
-│   └── schema/          @realhuman/schema: data formats and types (available)
-│                        client, engine, vercel, aws, jev, react, node: added in later milestones
-├── apps/                example apps (added from M3)
-├── tools/               internal tooling such as the bot lab (added in M7)
+│   ├── schema/          @realhuman/schema: data formats and types
+│   ├── client/          @realhuman/client: browser SDK and integrations
+│   ├── react/           @realhuman/react: React provider and hook
+│   ├── engine/          @realhuman/engine: scoring engine and re-scoring CLI
+│   ├── vercel/          @realhuman/vercel: Vercel / Next.js adapter
+│   ├── aws/             @realhuman/aws: Lambda handler and CDK construct
+│   ├── node/            @realhuman/node: self-hosted adapter
+│   └── jev/             @realhuman/jev: optional Jev engine
+├── apps/demo/           local demo site (pnpm --filter @realhuman/demo start)
+├── tools/bot-lab/       runs automation stacks against the demo (pnpm --filter @realhuman/bot-lab lab)
 ├── docs/                all user documentation
 └── .changeset/          pending release notes
 ```
@@ -55,6 +61,10 @@ realhuman/
 | `pnpm lint:fix` | Fix lint and formatting problems automatically |
 | `pnpm check` | All of the above, the same as CI |
 | `pnpm --filter @realhuman/schema test` | Run one package's tests |
+| `pnpm --filter @realhuman/demo start` | Run the demo site on http://localhost:3000 |
+| `pnpm --filter @realhuman/bot-lab lab` | Run the bot lab (needs Chrome or Edge installed) |
+
+After changing anything that affects scoring, run the bot lab and check that every scenario is still scored as a bot.
 
 ## Making a change
 
@@ -95,7 +105,7 @@ Our docs are written for someone who has never seen the project before:
 - Short sentences. Explain jargon or link to the [glossary](docs/glossary.md).
 - Number the steps. Give copy-pasteable commands and code.
 - Say how to check it worked ("✅ It worked if…").
-- Pages about unreleased features start with a `> [!NOTE]` naming the milestone.
+- Pages about unreleased features start with a `> [!NOTE]` saying so.
 
 ## Releasing (maintainers)
 

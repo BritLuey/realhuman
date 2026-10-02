@@ -164,6 +164,8 @@ export const PayloadSchema = v.object({
   elapsedMs: durationMs,
   /** Wall-clock milliseconds since the SDK started. */
   wallElapsedMs: finite,
+  /** Monotonic milliseconds since the client received the current nonce. */
+  nonceAgeMs: durationMs,
   context: ContextSchema,
   signals: SignalsSchema,
 });
@@ -197,6 +199,8 @@ export const ServerFactsSchema = v.object({
   timezoneMatch: v.nullable(v.boolean()),
   secFetchPresent: v.boolean(),
   clientHintsPresent: v.boolean(),
+  /** Do the Client Hints headers contradict the user agent? null when hints are absent. */
+  clientHintsMismatch: v.nullable(v.boolean()),
   /** Agent name from a valid Web Bot Auth signature, if any. */
   verifiedAgent: v.nullable(v.pipe(v.string(), v.maxLength(128))),
 });

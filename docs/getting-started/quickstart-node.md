@@ -1,9 +1,5 @@
 # Quickstart: Node.js (self-hosted)
 
-> [!NOTE]
-> **Planned: milestones M1, M2 and M7.** This guide shows the intended setup so you can plan your integration.
-> It will work once `@realhuman/client`, `@realhuman/engine` and `@realhuman/node` are released. See the [roadmap](../roadmap.md).
-
 Use this if you run your own Node.js server (Express, Fastify, Hono…) rather than Vercel or CloudFront.
 
 **Time needed:** about 15 minutes.

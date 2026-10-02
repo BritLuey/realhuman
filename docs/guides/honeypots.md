@@ -1,8 +1,5 @@
 # Honeypots
 
-> [!NOTE]
-> **Planned: milestone M1** (`@realhuman/client`). This page describes the intended behaviour.
-
 A **honeypot** is a trap that people can't see or reach, but bots stumble into. If a hidden form field
 gets filled in, a program did it, not a person. Honeypots are among the most reliable bot signals there are.
 
@@ -68,7 +65,7 @@ keyboard users tab into them. realHuman follows current best practice to avoid t
 ## Server-side form handling
 
 You don't need to change your form handler. The honeypot field is ignored by your server. If you want to be
-tidy, you can drop any field whose name starts with the honeypot prefix (shown in `debug` mode).
+tidy, you can drop any field whose name starts with `rh_` (the full name is shown in `debug` mode).
 
 ## Checking it works
 

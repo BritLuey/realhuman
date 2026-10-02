@@ -1,0 +1,76 @@
+{
+  "name": "@realhuman/aws",
+  "version": "0.0.0",
+  "description": "realHuman adapter for AWS Lambda behind CloudFront, with a CDK construct.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/realhuman.git",
+    "directory": "packages/aws"
+  },
+  "homepage": "https://github.com/your-org/realhuman#readme",
+  "bugs": "https://github.com/your-org/realhuman/issues",
+  "keywords": [
+    "realhuman",
+    "bot-detection",
+    "analytics"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cdk": {
+      "types": "./dist/cdk.d.ts",
+      "default": "./dist/cdk.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ../../scripts/write-version.mjs && tsc -p tsconfig.build.json",
+    "typecheck": "node ../../scripts/write-version.mjs && tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@realhuman/engine": "workspace:^"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-secrets-manager": "^3",
+    "aws-cdk-lib": "^2",
+    "constructs": "^10"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-secrets-manager": {
+      "optional": true
+    },
+    "aws-cdk-lib": {
+      "optional": true
+    },
+    "constructs": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1145.0",
+    "@types/aws-lambda": "^8.10.164",
+    "@types/node": "^22.20.5",
+    "aws-cdk-lib": "^2.272.0",
+    "constructs": "^10.8.1",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

@@ -1,8 +1,5 @@
 # Environment variables
 
-> [!NOTE]
-> **Planned: milestones M2–M5.** This page lists the intended variables.
-
 realHuman never asks you to put secrets in code. Instead, you tell it the **name** of an environment
 variable, and it reads the value at runtime. Every name below is a default you can change with the matching
 option.

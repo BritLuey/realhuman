@@ -1,0 +1,53 @@
+{
+  "name": "@realhuman/vercel",
+  "version": "0.0.0",
+  "description": "realHuman adapter for Vercel and Next.js.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/realhuman.git",
+    "directory": "packages/vercel"
+  },
+  "homepage": "https://github.com/your-org/realhuman#readme",
+  "bugs": "https://github.com/your-org/realhuman/issues",
+  "keywords": [
+    "realhuman",
+    "bot-detection",
+    "analytics"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ../../scripts/write-version.mjs && tsc -p tsconfig.build.json",
+    "typecheck": "node ../../scripts/write-version.mjs && tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@realhuman/engine": "workspace:^",
+    "@vercel/functions": "^3.9.9"
+  },
+  "devDependencies": {
+    "@realhuman/schema": "workspace:^",
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

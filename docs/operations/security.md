@@ -4,8 +4,9 @@ This page is for security reviewers and platform teams. To report a vulnerabilit
 [SECURITY.md](../../SECURITY.md); please don't open a public issue.
 
 > [!NOTE]
-> The controls below describe the intended design (milestones M1–M5). Each will be covered by automated
-> tests when it ships.
+> Each control below is covered by automated tests in the package that implements it
+> (`packages/engine/test`, `packages/client/test`, `packages/aws/test`, `packages/jev/test`). The
+> [bot lab](../../tools/bot-lab) exercises them end to end against a real browser.
 
 ## What realHuman protects, and what it doesn't
 
@@ -29,6 +30,7 @@ read your server's memory or environment.
 | **Clock manipulation.** The bot fast-forwards time to look patient. | Server-measured time since nonce issue is compared with client-reported elapsed time (`too_fast`). |
 | **Probing.** The attacker experiments to learn the scoring. | In `server` delivery mode responses are always `204`. Invalid nonces are scored, not rejected, so there's no error signal. |
 | **Planting bot labels on other users.** | Session ids are random (≥ 96 bits) and never shown in URLs except the optional trap link, which requires a valid nonce for that `sid`. |
+| **Server-side request forgery via Web Bot Auth.** A request names an attacker-chosen key directory URL. | Key directories are only fetched for agent origins you list in `webBotAuth.agents` (HTTPS only, no redirects, 1.5 s timeout, 64 KB limit, cached for an hour). With the default empty list, nothing is ever fetched. |
 | **Denial of service against the endpoint.** | Payloads are capped (`maxPayloadBytes`, default 16 KB). Validation is linear-time with no regex backtracking risk. Put the endpoint behind your existing WAF and rate limiting (Vercel Firewall, AWS WAF). |
 | **Tampering with browser-delivered scores.** | Documented as untrusted. The backend record is the source of truth. See [Delivery modes](../guides/delivery-modes.md#a-word-on-trust). |
 | **Secret leakage.** | Secrets are read from environment variables or Secrets Manager by name, never from code. Rotation is supported without downtime. Secrets are never logged. |

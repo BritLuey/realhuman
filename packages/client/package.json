@@ -1,0 +1,78 @@
+{
+  "name": "@realhuman/client",
+  "version": "0.0.0",
+  "description": "realHuman browser SDK: privacy-respecting signal collection, honeypots and delivery. No runtime dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/realhuman.git",
+    "directory": "packages/client"
+  },
+  "homepage": "https://github.com/your-org/realhuman#readme",
+  "bugs": "https://github.com/your-org/realhuman/issues",
+  "keywords": [
+    "realhuman",
+    "bot-detection",
+    "analytics"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./integrations/new-relic": {
+      "types": "./dist/integrations/new-relic.d.ts",
+      "default": "./dist/integrations/new-relic.js"
+    },
+    "./integrations/datadog-rum": {
+      "types": "./dist/integrations/datadog-rum.d.ts",
+      "default": "./dist/integrations/datadog-rum.js"
+    },
+    "./integrations/ga4": {
+      "types": "./dist/integrations/ga4.d.ts",
+      "default": "./dist/integrations/ga4.js"
+    },
+    "./integrations/data-layer": {
+      "types": "./dist/integrations/data-layer.d.ts",
+      "default": "./dist/integrations/data-layer.js"
+    },
+    "./integrations/segment": {
+      "types": "./dist/integrations/segment.d.ts",
+      "default": "./dist/integrations/segment.js"
+    },
+    "./integrations/posthog": {
+      "types": "./dist/integrations/posthog.d.ts",
+      "default": "./dist/integrations/posthog.js"
+    },
+    "./realhuman.iife.js": "./dist/realhuman.iife.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ../../scripts/write-version.mjs && tsc -p tsconfig.build.json && node scripts/bundle.mjs",
+    "typecheck": "node ../../scripts/write-version.mjs && tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@realhuman/schema": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

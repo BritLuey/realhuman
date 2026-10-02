@@ -1,30 +1,38 @@
 # Roadmap
 
-realHuman is built in milestones. Each milestone ships as package releases on npm, with its docs updated
-from "Planned" to "Available".
-
-| Milestone | What ships | Packages | Status |
+| Milestone | What shipped | Packages | Status |
 |---|---|---|---|
-| **M0: Foundations** | Monorepo, CI, release pipeline, data formats and reason codes, documentation | `@realhuman/schema` | ✅ **Done** |
-| **M1: Browser SDK** | Signal collectors, honeypots, sending, consent, script-tag build | `@realhuman/client` | Next |
-| **M2: Algorithmic engine** | Nonces, gates, evidence scoring, delivery modes, `onDecision` | `@realhuman/engine` | Planned |
-| **M3: Vercel adapter** | Route handlers, JA4 from Vercel headers, edge tagging, Next.js example app | `@realhuman/vercel` | Planned |
-| **M4: AWS adapter** | Lambda handler, Secrets Manager support, CDK construct, example stack | `@realhuman/aws` | Planned |
-| **M5: Jev engine** | Jev via Vercel AI Gateway, OpenRouter and TypeSafe; failover; shadow mode | `@realhuman/jev` | Planned |
-| **M6: Frontend integrations** | New Relic, Datadog RUM, GA4, GTM, Segment, PostHog; React provider | `@realhuman/client`, `@realhuman/react` | Planned |
-| **M7: Calibration & 1.0** | Bot test lab, published accuracy figures, re-scoring tool, Node adapter, 1.0 release | `@realhuman/node`, tooling | Planned |
+| **M0: Foundations** | Monorepo, CI, release pipeline, data formats and reason codes, documentation | `@realhuman/schema` | ✅ Done |
+| **M1: Browser SDK** | Signal collectors, honeypots, sending, consent, script-tag build | `@realhuman/client` | ✅ Done |
+| **M2: Algorithmic engine** | Nonces, gates, evidence scoring, delivery modes, `onDecision`, Web Bot Auth | `@realhuman/engine` | ✅ Done |
+| **M3: Vercel adapter** | Route handlers, JA4 from Vercel headers, edge tagging | `@realhuman/vercel` | ✅ Done |
+| **M4: AWS adapter** | Lambda handler, Secrets Manager support, CDK construct | `@realhuman/aws` | ✅ Done |
+| **M5: Jev engine** | Jev via Vercel AI Gateway, OpenRouter, TypeSafe and the AI SDK; failover; shadow mode | `@realhuman/jev` | ✅ Done |
+| **M6: Frontend integrations** | New Relic, Datadog RUM, GA4, GTM, Segment, PostHog; React provider | `@realhuman/client`, `@realhuman/react` | ✅ Done |
+| **M7: Calibration tooling** | Bot lab, re-scoring CLI, Node adapter, demo site | `@realhuman/node`, `tools/bot-lab`, `apps/demo` | ✅ Done |
 
-## M7 in more detail
+## Before 1.0
 
-Before 1.0, the scoring is calibrated and its accuracy published:
+Three things stand between the current code and a 1.0 release:
 
-- **Bot lab:** an automated harness that runs common automation stacks (Playwright, Puppeteer with stealth
-  plugins, Selenium, undetected/patched Chromium builds, anti-detect browsers, plain HTTP clients) against a
-  test site, alongside real human sessions.
-- **Published numbers:** false-positive and detection rates at the default thresholds, re-measured for every
-  release that changes scoring.
-- **Re-scoring tool:** re-scores stored decision records with a newer engine, so historical data benefits
-  from improvements.
+1. **Calibrate against real human traffic.** The bot lab currently scores all 9 of its automation scenarios as
+   bots, but it can't measure *false positives*: how often real people are mistaken for bots. That needs real
+   sessions. Deploy with [shadow mode](guides/shadow-mode.md) or in `server` delivery mode, review the
+   `uncertain` and `bot` sessions from known-good traffic (staff, logged-in customers), and tune `WEIGHTS` in
+   `packages/engine/src/analysis.ts`. Then publish the false-positive rate at the default thresholds.
+2. **Verify in production environments.**
+   - Confirm Vercel's `x-vercel-ja4-digest` and CloudFront's `CloudFront-Viewer-JA4-Fingerprint` values parse
+     as standard JA4.
+   - Deploy the CDK construct to a real AWS account; its permissions are checked at synth time only.
+   - Confirm OpenRouter's Jev evaluation endpoint, which is currently assumed.
+3. **Publish to npm.** Claim the `@realhuman` npm scope, set up trusted publishing, and merge the first
+   "Version Packages" pull request.
+
+## Ideas for later
+
+- Expand the bot lab: more stealth frameworks, anti-detect browsers, mobile emulation.
+- A Cloudflare Workers adapter (the engine already runs there; it needs Bot Management for JA4).
+- Published JSON Schema files for warehouse teams.
 
 ## Not planned
 

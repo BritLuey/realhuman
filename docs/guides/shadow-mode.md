@@ -1,8 +1,5 @@
 # Shadow mode: compare engines safely
 
-> [!NOTE]
-> **Planned: milestone M5.** This page describes the intended API.
-
 Shadow mode runs a **second engine** on every session and stores its answer alongside the main one.
 Nothing about the main score changes. Use it to compare the algorithmic engine with Jev, or a new
 configuration with your current one, before switching.

@@ -1,8 +1,8 @@
 # Reason codes
 
 > [!NOTE]
-> **Available now** as `REASONS` and `REASON_CODES` in `@realhuman/schema`. The engine that produces them
-> is planned for milestone M2. A test in the schema package fails if any code is missing from this page.
+> Defined as `REASONS` and `REASON_CODES` in `@realhuman/schema` and produced by `@realhuman/engine`. A test in
+> the schema package fails if any code is missing from this page.
 
 Every decision record has a `reasons` array explaining the score. Reason codes go to **your backend only**
 and are never sent to the browser.
@@ -32,6 +32,7 @@ Gates are conclusive on their own. If any gate fires, analysis stops, the score 
 | `too_fast` | bot | The client reported more elapsed time than had really passed since the nonce was issued, a sign of a fast-forwarded clock. |
 | `ja4_non_browser` | bot | The TLS fingerprint belongs to a non-browser HTTP library while the user agent claims to be a browser. |
 | `automation_markers` | bot | Globals or properties left behind by an automation framework were found. |
+| `ua_bot` | bot | The user agent openly identifies itself as a bot, crawler or HTTP library. |
 
 ## Environment
 
@@ -64,6 +65,7 @@ Gates are conclusive on their own. If any gate fires, analysis stops, the score 
 | `pointer_teleport` | bot | Clicks happened with no pointer movement leading up to them. |
 | `click_dead_center` | bot | Clicks landed exactly in the centre of their targets. |
 | `keyboard_uniform` | bot | Key presses were evenly spaced, as a script would type. |
+| `form_too_fast` | bot | A protected form was submitted faster than a person could fill it in. |
 | `pointer_natural` | human | Pointer movement had natural curvature, speed changes and pauses. |
 | `keyboard_natural` | human | Typing rhythm varied in the way human typing does. |
 | `touch_natural` | human | Touch contact size, pressure and timing varied naturally. |

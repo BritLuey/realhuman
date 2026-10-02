@@ -67,6 +67,7 @@ Sent by the browser to `POST {endpoint}/score`.
 | `nonce` | string | Nonce from the init response |
 | `elapsedMs` | number | Monotonic ms since the SDK started |
 | `wallElapsedMs` | number | Wall-clock ms since the SDK started |
+| `nonceAgeMs` | number | Monotonic ms since the current nonce was received. The server compares it with its own clock to catch fast-forwarded clocks (`too_fast`). |
 | `context` | object | Your join keys: up to 10 keys (1–64 chars, `A–Z a–z 0–9 _ . -`), values up to 256 chars |
 | `signals` | [Signals](#signals) | What was observed |
 
@@ -141,6 +142,7 @@ Passed to `onDecision` for every update. **This is the source of truth for filte
 | `timezoneMatch` | boolean \| null | Does the browser's time zone match the IP's? `null` if either is unknown. |
 | `secFetchPresent` | boolean | Were fetch-metadata headers present? |
 | `clientHintsPresent` | boolean | Were User-Agent Client Hints present? |
+| `clientHintsMismatch` | boolean | null | Do the Client Hints contradict the user agent? `null` when absent. |
 | `verifiedAgent` | string \| null | Agent name from a valid Web Bot Auth signature |
 
 ### Verdict
@@ -189,6 +191,7 @@ Passed to `onDecision` for every update. **This is the source of truth for filte
     "timezoneMatch": true,
     "secFetchPresent": true,
     "clientHintsPresent": true,
+    "clientHintsMismatch": false,
     "verifiedAgent": null
   },
   "signals": { "env": { "...": "..." }, "pointer": { "...": "..." }, "keyboard": null, "touch": null, "scroll": { "...": "..." }, "timing": { "...": "..." }, "honeypot": { "...": "..." } },

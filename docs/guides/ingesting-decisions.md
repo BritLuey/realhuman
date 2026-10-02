@@ -1,9 +1,5 @@
 # Ingesting decisions
 
-> [!NOTE]
-> **Planned: milestone M2** (`@realhuman/engine`). The record format itself is **available now** in
-> `@realhuman/schema`; see [Data formats](../reference/data-formats.md#decision-record).
-
 Every decision reaches your backend through the `onDecision` callback. This page shows how to store them.
 
 ## The callback
@@ -115,8 +111,14 @@ if (!result.success) console.warn('bad record', result.issues);
 ## Why keep the full record?
 
 Store `record` (or at least `signals`) as well as the score. When the engine improves, you can **re-score
-historical data** from the stored signals without having collected anything new. A re-scoring tool is on
-the [roadmap](../roadmap.md) (M7).
+historical data** from the stored signals without having collected anything new. Use the CLI that ships
+with the engine (export your records as NDJSON, one record per line):
+
+```bash
+npx realhuman-rescore < decisions.ndjson > rescored.ndjson
+```
+
+Or call `rescore(record)` from `@realhuman/engine` in your own pipeline.
 
 ## Retention
 

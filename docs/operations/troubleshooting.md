@@ -1,8 +1,5 @@
 # Troubleshooting
 
-> [!NOTE]
-> Most entries apply once milestones M1–M5 ship. They're listed now so you can plan around known pitfalls.
-
 Find your symptom below. If nothing fits, see [SUPPORT.md](../../SUPPORT.md).
 
 **First step for any problem:** turn on debug logging on both sides and reproduce the issue.

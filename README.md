@@ -17,10 +17,10 @@ so you can filter bots out of your analytics, dashboards and reports.
 ---
 
 > [!IMPORTANT]
-> **Project status: early development.** The data formats (`@realhuman/schema`) are available now.
-> The browser SDK, scoring engine and hosting adapters are being built in the order shown in the
-> [roadmap](docs/roadmap.md). Pages describing features that haven't shipped say so at the top, so you can
-> plan an integration before it's released.
+> **Project status: pre-1.0.** Every package is implemented and tested (283 tests), and the [bot lab](tools/bot-lab)
+> scores all 9 of its automation scenarios as bots. The packages are not yet published to npm, and the scoring
+> weights have not yet been calibrated against real human traffic. Run [shadow mode](docs/guides/shadow-mode.md)
+> and check your own traffic before relying on thresholds. See the [roadmap](docs/roadmap.md).
 
 ## What is realHuman?
 
@@ -84,10 +84,23 @@ You make three choices. Each has a sensible default.
 | **Who decides?** | `algorithmic` · `jev` | `algorithmic` | [Jev engine](docs/guides/jev-engine.md) |
 | **Who gets the result?** | `server` · `client` · `both` | `server` | [Delivery modes](docs/guides/delivery-modes.md) |
 
-## Quickstart
+## Try it locally in two minutes
 
-> [!NOTE]
-> The quickstart below shows the intended API. It will work once milestones M1–M3 are released. See the [roadmap](docs/roadmap.md).
+You need Node.js 22+ and pnpm (`corepack enable`).
+
+```bash
+git clone https://github.com/your-org/realhuman.git
+cd realhuman
+pnpm install
+pnpm build
+pnpm --filter @realhuman/demo start
+```
+
+Open <http://localhost:3000>, move the mouse, scroll and type. Your score appears at the top of the page, and
+the server's decision records, reason codes included, appear in the table below. To see bots being caught, run
+`pnpm --filter @realhuman/bot-lab lab` (it uses your installed Chrome).
+
+## Quickstart
 
 This example uses Next.js on Vercel. **Step 1: install the packages.**
 
@@ -131,16 +144,19 @@ Full walkthroughs: [Vercel](docs/getting-started/quickstart-vercel.md) · [Cloud
 
 ## Packages
 
-| Package | What it does | Status |
-|---|---|---|
-| [`@realhuman/schema`](packages/schema) | Data formats and TypeScript types shared by everything else | **Available** (M0) |
-| `@realhuman/client` | Browser SDK: signal collection, honeypots, sending | Planned (M1) |
-| `@realhuman/engine` | Scoring engine, session tokens, decision records | Planned (M2) |
-| `@realhuman/vercel` | Vercel / Next.js adapter | Planned (M3) |
-| `@realhuman/aws` | AWS Lambda + CloudFront adapter and CDK construct | Planned (M4) |
-| `@realhuman/jev` | Optional Jev engine (TypeSafe, Vercel AI Gateway, OpenRouter) | Planned (M5) |
-| `@realhuman/react` | React provider and hook | Planned (M6) |
-| `@realhuman/node` | Express, Fastify and Hono adapter for self-hosting | Planned (M7) |
+| Package | What it does |
+|---|---|
+| [`@realhuman/schema`](packages/schema) | Data formats and TypeScript types shared by everything else |
+| [`@realhuman/client`](packages/client) | Browser SDK: signal collection, honeypots, sending, integrations. No runtime dependencies, about 8 KB gzipped |
+| [`@realhuman/engine`](packages/engine) | Scoring engine, session tokens, decision records, re-scoring CLI |
+| [`@realhuman/vercel`](packages/vercel) | Vercel / Next.js adapter, including edge tagging |
+| [`@realhuman/aws`](packages/aws) | AWS Lambda + CloudFront adapter and CDK construct |
+| [`@realhuman/jev`](packages/jev) | Optional Jev engine (Vercel AI Gateway, OpenRouter, TypeSafe, AI SDK) |
+| [`@realhuman/react`](packages/react) | React provider and hook |
+| [`@realhuman/node`](packages/node) | Express, Connect, `node:http`, Hono, Bun and Deno adapter |
+
+Also in the repo: a [demo site](apps/demo) you can run locally, and the [bot lab](tools/bot-lab), which runs
+automation stacks against it.
 
 ## Documentation
 

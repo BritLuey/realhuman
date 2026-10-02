@@ -1,8 +1,5 @@
 # Browser SDK
 
-> [!NOTE]
-> **Planned: milestone M1** (`@realhuman/client`). This page describes the intended API.
-
 The browser SDK is the small script that runs in your pages. It collects signals, adds honeypots and sends
 summaries to your server.
 
@@ -21,6 +18,8 @@ const rh = init();
 ```
 
 Call `init()` **once per page load**, as early as you can. Signals are collected from the moment it runs.
+Calling it again returns the same instance (new options are ignored) until `rh.destroy()`. It's safe to call
+during server-side rendering: it returns an inert instance there.
 In a single-page app, call it once when the app starts, not on every route change.
 
 ### With a script tag (no build step)
@@ -64,7 +63,7 @@ init({
 
 | Member | What it does |
 |---|---|
-| `rh.sid` | This page load's session id. Use it to join with other data. |
+| `rh.sid` | This page load's session id. Use it to join with other data. Empty until the server has answered `init`. |
 | `rh.ready` | A promise for the first result. Resolves to `null` in `server` delivery mode. |
 | `rh.score()` | Sends an update now and returns a promise for its result. Use it before important actions. |
 | `rh.on('result', fn)` / `rh.off('result', fn)` | Run `fn` for every result. |
@@ -124,12 +123,16 @@ under a strict CSP. You may need:
 | `connect-src` | `'self'` (or your endpoint's origin) | Sending updates |
 | `worker-src` | `blob:` | The Worker consistency check. If blocked, that one check is skipped |
 
+If the trap link is enabled, it uses one non-passive click listener so it can cancel navigation.
+
 ## Guarantees
 
 - **Never throws** into your code. Errors are swallowed, or logged when `debug: true`.
 - **Never blocks** rendering, input or navigation. Listeners are passive; heavy work runs when the browser is idle.
 - **Small:** core under 8 KB gzipped, with no dependencies. See [Performance](../operations/performance.md).
 - **Stores nothing** on the device.
+- **Never mislabels idle tabs.** The final page-close update is skipped if the session nonce has already expired,
+  so a tab left open for hours isn't scored as a bot.
 
 ## Debugging
 

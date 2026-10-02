@@ -1,8 +1,5 @@
 # Filtering bots out of your data
 
-> [!NOTE]
-> **Planned: milestones M1–M2.** The data formats used below are **available now** in `@realhuman/schema`.
-
 This is the payoff: using realHuman decisions to clean up analytics and reports.
 
 ## Step 1: Connect decisions to your analytics data

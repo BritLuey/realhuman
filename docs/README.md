@@ -3,8 +3,7 @@
 Welcome. If you are new, read the pages in the **Start here** section in order. They take about
 15 minutes in total.
 
-Each page that describes an unreleased feature has a note at the top naming its [roadmap](roadmap.md)
-milestone.
+Want to see it working first? Run the [demo site](../apps/demo) locally; it takes two minutes.
 
 ## Start here
 

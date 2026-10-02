@@ -1,0 +1,16 @@
+{
+  "name": "@realhuman/bot-lab",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runs common automation stacks against the realHuman demo and reports how each is scored.",
+  "type": "module",
+  "scripts": {
+    "lab": "node lab.js"
+  },
+  "dependencies": {
+    "@realhuman/demo": "workspace:^"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

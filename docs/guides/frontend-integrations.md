@@ -1,8 +1,5 @@
 # Frontend integrations (New Relic, Datadog, GA4 and more)
 
-> [!NOTE]
-> **Planned: milestone M6.** This page describes the intended API.
-
 If you set the [delivery mode](delivery-modes.md) to `client` or `both`, the browser receives the score,
 and you can pass it on to any tool running in the page.
 

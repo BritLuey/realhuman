@@ -1,8 +1,7 @@
 # Signals
 
 > [!NOTE]
-> The **format** of every signal is **available now** in `@realhuman/schema` (`SignalsSchema`).
-> Collection in the browser is **planned for milestone M1**.
+> Collected by `@realhuman/client`; the format is defined in `@realhuman/schema` (`SignalsSchema`).
 
 This page lists everything the browser SDK collects, why it helps, and how privacy is protected.
 

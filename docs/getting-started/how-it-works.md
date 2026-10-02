@@ -91,7 +91,7 @@ The engine works in four stages:
 
 1. **Validate.** Is the payload well-formed? Is the nonce genuine, unexpired and presented by the same client it was issued to?
 2. **Gates.** Some evidence is conclusive on its own: a filled honeypot, automation framework globals, or a non-browser TLS fingerprint claiming to be a browser. Any of these ends the analysis and gives a score near `0`.
-3. **Verified agents.** An AI agent with a valid Web Bot Auth signature gets the verdict `verified_agent`, so you can decide separately whether to count it.
+3. **Verified agents.** An AI agent with a valid Web Bot Auth signature, from an agent you have chosen to trust (`webBotAuth.agents`), gets the verdict `verified_agent`, so you can decide separately whether to count it.
 4. **Scoring.** Everything else is weighed together by your chosen engine:
    - **`algorithmic`** (default): each piece of evidence nudges the score up or down. The nudges are capped per category so one odd signal, such as an unusual mouse, can't sink a real person.
    - **`jev`**: the evidence is sent to [Jev](../guides/jev-engine.md), which returns a probability. The gates still run first, and if Jev is slow or unavailable, the algorithmic engine answers instead.

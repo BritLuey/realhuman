@@ -1,0 +1,14 @@
+{
+  "name": "@realhuman/demo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local demo site for realHuman: a test page, the browser SDK and the Node adapter, with live decisions.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@realhuman/client": "workspace:^",
+    "@realhuman/node": "workspace:^"
+  }
+}

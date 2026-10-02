@@ -1,10 +1,5 @@
 # Configuration reference
 
-> [!NOTE]
-> **Planned: milestones M1–M7.** Option names and defaults are the intended API. Values marked as
-> constants in `@realhuman/schema` (default endpoint, default flush delay, payload size limit) are
-> **available now**.
-
 Every option, with its type and default. If you only change a few things, the
 [quickstarts](../README.md#start-here) are a better starting point.
 
@@ -67,7 +62,7 @@ and `createWebHandler` (Node).
 | `shadow` | `'algorithmic'` or a `jev(…)` engine | none | Run a second engine and store its answer in `record.shadow`. See [Shadow mode](../guides/shadow-mode.md). |
 | `deliver` | `'server'` \| `'client'` \| `'both'` | `'server'` | Who receives results. See [Delivery modes](../guides/delivery-modes.md). |
 | `clientFields` | `Array<'realHuman' \| 'verdict' \| 'kind' \| 'confidence'>` | `['realHuman', 'verdict', 'confidence']` | Fields the browser may receive. `sid` and `seq` are always included. Reason codes can never be exposed. |
-| `onDecision` | `(record: DecisionRecord) => void \| Promise<void>` | none | Receives every decision. Runs after the response is sent. A warning is logged at start-up if `deliver` includes `server` and this is missing. |
+| `onDecision` | `(record: DecisionRecord) => void \| Promise<void>` | none | Receives every decision. On Vercel and Node.js it runs after the response is sent; on AWS Lambda it finishes before the response is returned, because Lambda pauses as soon as it responds. A warning is logged at start-up if `deliver` includes `server` and this is missing. |
 | `onDecisionTimeoutMs` | `number` | `10000` | Maximum time `onDecision` may run before it is abandoned (and logged). |
 | `thresholds` | `{ human: number; bot: number }` | `{ human: 0.7, bot: 0.3 }` | `realHuman ≥ human` gives verdict `human`; `realHuman ≤ bot` gives `bot`; anything between is `uncertain`. |
 | `secretEnv` | `string` | `'REALHUMAN_SECRET'` | **Name** of the environment variable holding the signing secret (at least 32 random bytes, base64). |
@@ -75,7 +70,8 @@ and `createWebHandler` (Node).
 | `nonceTtlMs` | `number` | `900000` (15 min) | How long a session nonce is valid. The SDK refreshes it automatically on long-lived pages. |
 | `maxPayloadBytes` | `number` | `16384` | Larger request bodies are rejected with 413. |
 | `allowedOrigins` | `string[]` | `[]` (same origin only) | Extra origins allowed to call the endpoint (CORS). Only needed if the endpoint is on a different domain. |
-| `verifyWebBotAuth` | `boolean` | `true` | Check Web Bot Auth signatures and label valid ones `verified_agent`. |
+| `webBotAuth` | `{ agents?: string[]; authority?: string; fetch?: typeof fetch }` | `{ agents: [] }` (off) | Verify [Web Bot Auth](../glossary.md#web-bot-auth) signatures from the agent origins you list (for example `['https://chatgpt.com']`) and label them `verified_agent`. Only listed agents' key directories are ever fetched. Set `authority` to your public host name if a CDN rewrites the `Host` header (CloudFront → Lambda). |
+| `ja4` | `{ browser?: string[]; nonBrowser?: string[] }` | `{}` | Exact JA4 values you know to be real browsers (never flagged) or non-browser clients (always gated). |
 | `env` | `(name: string) => string \| undefined` | the adapter's default | How environment variables are read. Override for custom secret stores. |
 | `logger` | `{ debug, info, warn, error }` | `console` | Where realHuman writes its own logs. |
 | `debug` | `boolean` | `false` | Verbose logging, including reasons, on the server. |
@@ -132,7 +128,7 @@ Takes the [engine options](#engine-options) plus:
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `secretArnEnv` | `string` | `'REALHUMAN_SECRET_ARN'` | **Name** of the variable holding a Secrets Manager ARN. If set, the secret is loaded from Secrets Manager at cold start and cached; `secretEnv` is then ignored. |
+| `secretArnEnv` | `string` | `'REALHUMAN_SECRET_ARN'` | **Name** of the variable holding a Secrets Manager ARN. If set, the secret is loaded from Secrets Manager on each container's first request and cached; `secretEnv` is then ignored. The value may be the secret itself or JSON `{"current": "…", "previous": "…"}` for rotation. If loading fails, sessions are reported `uncertain` and loading is retried after 60 s. |
 
 Headers read automatically: `cloudfront-viewer-ja4-fingerprint`, `cloudfront-viewer-time-zone`, plus the
 browser and Web Bot Auth headers listed under the [Vercel adapter](#createhandlersoptions).
@@ -148,10 +144,13 @@ browser and Web Bot Auth headers listed under the [Vercel adapter](#createhandle
 | `memorySize` | `number` | `256` | Lambda memory (MB). |
 | `timeout` | `Duration` | `Duration.seconds(5)` | Lambda timeout. Raise it if `onDecision` or Jev needs longer. |
 | `environment` | `Record<string, string>` | `{}` | Extra environment variables (for example `AI_GATEWAY_API_KEY` references). |
+| `headers` | `string[]` | 9 headers (see the [CloudFront quickstart](../getting-started/quickstart-cloudfront.md#step-3-option-b-set-it-up-by-hand)) | Headers forwarded by the origin request policy. Never include `Host`. |
+| `webBotAuth` | `boolean` | `false` | Also forward `Signature`, `Signature-Input`, `Signature-Agent` (12 headers: needs a CloudFront quota increase). |
+| `handler` | `string` | `'handler'` | Exported handler name in `entry`. |
+| `runtime` | `lambda.Runtime` | Node.js 24 | Lambda runtime. |
+| `architecture` | `lambda.Architecture` | `ARM_64` | Lambda architecture. |
 
-**Lambda@Edge alternative.** `createLambdaHandler` also runs on Lambda@Edge (origin-request trigger).
-Lambda@Edge has no environment variables, so pass `env` explicitly, typically by loading values from
-Secrets Manager in `us-east-1`. The regional function URL setup is recommended for most teams.
+**Lambda@Edge** is not supported: the handler accepts Lambda function URL events only.
 
 ---
 
@@ -170,7 +169,9 @@ Both take the [engine options](#engine-options) plus:
 |---|---|---|---|
 | `ja4Header` | `string` | none | Header your TLS-terminating proxy sets with the JA4 fingerprint. **Only set this if the proxy always overwrites it.** |
 | `timezoneHeader` | `string` | none | Header your proxy sets with the IP's time zone, if any. |
-| `waitUntil` | `(promise: Promise<unknown>) => void` | none | Hook for platforms with a background-task API. Without it, background work is tracked in-process. |
+| `waitUntil` | `(promise: Promise<unknown>) => void` | none | Hook for platforms with a background-task API. Without it, background work runs in-process after the response is sent. |
+
+Both handlers have a `drain()` method that resolves once in-flight background work (such as `onDecision`) has finished. Call it on shutdown.
 
 ---
 
@@ -181,9 +182,10 @@ Both take the [engine options](#engine-options) plus:
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `provider` | `'vercel-ai-gateway'` \| `'openrouter'` \| `'typesafe'` \| `'ai-sdk'` \| `JevProvider` | required | Where Jev is called. |
-| `apiKeyEnv` | `string` | per provider: `AI_GATEWAY_API_KEY`, `OPENROUTER_API_KEY`, `TYPESAFE_AI_API_KEY` | **Name** of the environment variable holding the API key. |
+| `apiKeyEnv` | `string` | per provider: `AI_GATEWAY_API_KEY`, `OPENROUTER_API_KEY`, `TYPESAFE_AI_API_KEY` | **Name** of the environment variable holding the API key. Ignored for `'ai-sdk'`. For Vercel AI Gateway, falls back to `VERCEL_OIDC_TOKEN`. |
 | `model` | `string` or AI SDK model | per provider: `typesafe-ai/jev`, `typesafe/jev-latest`, `jev-latest` | Model id. |
 | `timeoutMs` | `number` | `800` | After this, the algorithmic engine answers (`engine: "algorithmic-fallback"`). |
-| `failover` | `Array<{ provider, apiKeyEnv?, model? }>` | `[]` | Providers to try, in order, on 402, 429, 5xx or timeout. |
-| `zeroDataRetention` | `boolean` | `true` | Request zero data retention where the provider supports it. |
+| `failover` | `Array<{ provider, apiKeyEnv?, model?, baseUrl? }>` | `[]` | Providers to try, in order, on 402, 429, 5xx or network errors. All share `timeoutMs`. `'ai-sdk'` isn't allowed here. |
+| `zeroDataRetention` | `boolean` | `true` | Ask Vercel AI Gateway (native or via `'ai-sdk'`) to route only to zero-data-retention providers. Not sent to OpenRouter or TypeSafe. |
+| `fetch` | `typeof fetch` | global `fetch` | Override fetch, for proxies and tests. |
 | `baseUrl` | `string` | provider default | Override the API base URL, for example to go through a corporate proxy. |

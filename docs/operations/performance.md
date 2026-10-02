@@ -1,8 +1,9 @@
 # Performance
 
 > [!NOTE]
-> These are **targets** for the planned packages (milestones M1–M5). From M1 onwards they will be enforced in
-> CI, and a release that exceeds a budget will fail its build.
+> The browser budgets are enforced on every build: `packages/client/scripts/bundle.mjs` fails the build if a
+> bundle exceeds its budget. At the time of writing the core SDK is 8,181 bytes gzipped and each integration
+> 181–316 bytes. Server figures are design targets.
 
 realHuman must never be the reason a page feels slow.
 

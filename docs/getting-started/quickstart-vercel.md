@@ -1,9 +1,5 @@
 # Quickstart: Vercel (Next.js)
 
-> [!NOTE]
-> **Planned: milestones M1–M3.** This guide shows the intended setup so you can plan your integration.
-> It will work once `@realhuman/client`, `@realhuman/engine` and `@realhuman/vercel` are released. See the [roadmap](../roadmap.md).
-
 **Time needed:** about 10 minutes.
 **You'll end up with:** every page load on your site scored, and the results in your Vercel logs.
 

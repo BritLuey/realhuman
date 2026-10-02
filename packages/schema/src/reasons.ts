@@ -66,6 +66,11 @@ export const REASONS = {
     lean: 'bot',
     description: 'Globals or properties left behind by an automation framework were found.',
   },
+  ua_bot: {
+    group: 'gate',
+    lean: 'bot',
+    description: 'The user agent openly identifies itself as a bot, crawler or HTTP library.',
+  },
 
   // Environment: what the browser says about itself, and whether that story is consistent.
   webdriver: {
@@ -160,6 +165,11 @@ export const REASONS = {
     group: 'behaviour',
     lean: 'bot',
     description: 'Key presses were evenly spaced, as a script would type.',
+  },
+  form_too_fast: {
+    group: 'behaviour',
+    lean: 'bot',
+    description: 'A protected form was submitted faster than a person could fill it in.',
   },
   pointer_natural: {
     group: 'behaviour',

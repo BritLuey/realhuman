@@ -1,9 +1,5 @@
 # Quickstart: AWS CloudFront
 
-> [!NOTE]
-> **Planned: milestones M1, M2 and M4.** This guide shows the intended setup so you can plan your integration.
-> It will work once `@realhuman/client`, `@realhuman/engine` and `@realhuman/aws` are released. See the [roadmap](../roadmap.md).
-
 **Time needed:** about 20 minutes with CDK, or 40 minutes by hand.
 **You'll end up with:** CloudFront sending `/api/realhuman/*` to a Lambda function that scores each page
 load, with results in CloudWatch Logs.
@@ -42,8 +38,9 @@ aws secretsmanager create-secret \
   --secret-string "$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))")"
 ```
 
-The Lambda function loads it at start-up, so the secret never appears in your code or environment
-variables.
+The Lambda function loads it on its first request and caches it, so the secret never appears in your code or
+environment variables. To rotate without downtime, store JSON instead: `{"current": "<new>", "previous": "<old>"}`
+(see [Security](../operations/security.md#rotating-the-secret)).
 
 ## Step 2: Write the Lambda handler
 
@@ -104,10 +101,15 @@ Skip to [Step 4](#step-4-start-the-sdk-in-the-browser).
 
 Use this if your distribution isn't managed by CDK.
 
-1. **Create the Lambda function.** Bundle `lambda/realhuman.ts` (for example with `esbuild --bundle --platform=node --target=node22`), then create a Node.js 22+ function from it with 256 MB of memory and a 5-second timeout.
+1. **Create the Lambda function.** Bundle `lambda/realhuman.ts`:
+   ```bash
+   npx esbuild lambda/realhuman.ts --bundle --platform=node --target=node22 --external:@aws-sdk/* --supported:dynamic-import=false --outfile=dist/index.js
+   ```
+   Then create a Node.js 22 or 24 function from it with 256 MB of memory and a 5-second timeout (keep the timeout above
+   `onDecisionTimeoutMs`, since on Lambda `onDecision` finishes before the response is returned).
 2. **Give it the secret.** Set the environment variable `REALHUMAN_SECRET_ARN` to the ARN of `realhuman/secret`, and give the function's role `secretsmanager:GetSecretValue` on that secret.
 3. **Add a function URL** with auth type **AWS_IAM**.
-4. **Add the function URL as an origin** of your distribution, with a new **Origin Access Control** of type *Lambda*. Add the resource policy the console offers so CloudFront can invoke the URL.
+4. **Add the function URL as an origin** of your distribution, with a new **Origin Access Control** of type *Lambda*. Add the resource policy the console offers so CloudFront can invoke the URL. CloudFront needs both `lambda:InvokeFunctionUrl` and `lambda:InvokeFunction` (the latter with the condition `lambda:InvokedViaFunctionUrl = true`), each scoped to your distribution's ARN.
 5. **Create an origin request policy** that forwards these headers:
 
    | Header | Why |
@@ -115,14 +117,17 @@ Use this if your distribution isn't managed by CDK.
    | `CloudFront-Viewer-JA4-Fingerprint` | TLS fingerprint |
    | `CloudFront-Viewer-Time-Zone` | IP time zone |
    | `User-Agent` | Claimed browser |
-   | `Accept-Language` | Consistency check |
-   | `Sec-CH-UA`, `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform` | Client Hints |
-   | `Sec-Fetch-Site`, `Sec-Fetch-Mode`, `Sec-Fetch-Dest` | Fetch metadata |
-   | `Signature`, `Signature-Input`, `Signature-Agent` | Web Bot Auth (verified AI agents) |
+   | `Sec-CH-UA`, `Sec-CH-UA-Platform` | Client Hints |
+   | `Sec-Fetch-Site`, `Sec-Fetch-Mode` | Fetch metadata |
    | `x-amz-content-sha256` | Required by OAC for POST bodies |
+   | `Origin` | Only needed if you use `allowedOrigins` (CORS) |
 
-   Do **not** forward the `Host` header to a Lambda function URL, or requests will fail with 403.
-   If you hit the limit on headers per policy, ask AWS for a quota increase.
+   That's 9 headers; CloudFront's default quota is 10 per origin request policy. To verify self-identifying AI
+   agents, also forward `Signature`, `Signature-Input` and `Signature-Agent` (12 in total, which needs a quota
+   increase) and set `webBotAuth.authority` to your site's host name.
+
+   Forward all query strings and no cookies. Do **not** forward the `Host` header to a Lambda function URL, or
+   requests will fail with 403.
 6. **Add a cache behaviour** for the path pattern `/api/realhuman/*`: allowed methods *GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE*, cache policy **CachingDisabled**, and the origin request policy from step 5.
 
 ## Step 4: Start the SDK in the browser
@@ -178,7 +183,6 @@ recheck step 3. Other problems: [Troubleshooting](../operations/troubleshooting.
 | Use the Jev engine | [Jev engine](../guides/jev-engine.md) |
 
 > [!NOTE]
-> **Why not Lambda@Edge?** It works, but it can't use environment variables, must be deployed in
-> `us-east-1`, and takes longer to roll out changes. A regional Lambda function behind CloudFront is simpler
-> to run and is fast enough for this job. It's still documented as an alternative in
-> [Configuration](../reference/configuration.md#aws-adapter).
+> **Why not Lambda@Edge?** It can't use environment variables, must be deployed in `us-east-1`, and takes longer
+> to roll out changes. A regional Lambda function behind CloudFront is simpler to run and fast enough for this
+> job. The adapter handles Lambda function URL events only; Lambda@Edge isn't supported.

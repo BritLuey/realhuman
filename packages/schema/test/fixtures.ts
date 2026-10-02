@@ -69,6 +69,7 @@ export function validPayload(): Payload {
     nonce: 'v1.eyJzaWQiOiJrM0o5eDBhUTJtVzhwTDVyVDd5QiJ9.c2lnbmF0dXJl',
     elapsedMs: 1003.4,
     wallElapsedMs: 1003,
+    nonceAgeMs: 940,
     context: { gaClientId: '1234567890.1700000000' },
     signals: validSignals(),
   };
@@ -96,6 +97,7 @@ export function validRecord(): DecisionRecord {
       timezoneMatch: true,
       secFetchPresent: true,
       clientHintsPresent: true,
+      clientHintsMismatch: false,
       verifiedAgent: null,
     },
     signals: validSignals(),
