@@ -10,24 +10,48 @@ const esc = (s) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   );
 
+const rate = (w) => (w ? `${pct(w.rate)} (95% CI ${pct(w.low)}–${pct(w.high)})` : '–');
+
+/** One plain-English line per analytics filter. */
+function filterLine(name, outcome, humans, bots) {
+  const parts = [];
+  if (bots.n > 0)
+    parts.push(`removes ${outcome.botsRemoved.k} of ${bots.n} bots, ${rate(outcome.botsRemoved)}`);
+  if (humans.n > 0) {
+    parts.push(
+      `wrongly removes ${outcome.humansRemoved.k} of ${humans.n} humans, ${rate(outcome.humansRemoved)}`,
+    );
+    if (outcome.humansRemovedUpperBound !== null) {
+      parts.push(
+        `with 95% confidence it removes fewer than ${pct(outcome.humansRemovedUpperBound)} of real people`,
+      );
+    }
+  }
+  return `${name}: ${parts.join('; ')}.`;
+}
+
 /** Plain-English findings, the part a non-specialist should read first. */
 export function findings(result) {
   const lines = [];
-  const { humans, bots, thresholds } = result;
-  if (bots.n > 0) {
+  const { humans, bots } = result;
+  if (bots.n === 0) lines.push('No labelled bot sessions: detection cannot be measured.');
+  if (bots.n > 0 || humans.n > 0) {
     lines.push(
-      `Of ${bots.n} automated sessions, ${bots.verdicts.bot} (${pct(bots.detected.rate)}, 95% CI ${pct(bots.detected.low)}–${pct(bots.detected.high)}) were scored as bots (realHuman ≤ ${thresholds.bot}), and ${bots.verdicts.human} passed as human.`,
+      filterLine("Standard filter (exclude label 'bot')", result.filters.standard, humans, bots),
     );
-  } else lines.push('No labelled bot sessions: detection rate cannot be measured.');
+    lines.push(
+      filterLine(
+        "Strict filter (keep only 'human' and 'unverified')",
+        result.filters.strict,
+        humans,
+        bots,
+      ),
+    );
+  }
   if (humans.n > 0) {
     lines.push(
-      `Of ${humans.n} human sessions, ${humans.verdicts.bot} (${pct(humans.falsePositive.rate)}, 95% CI ${pct(humans.falsePositive.low)}–${pct(humans.falsePositive.high)}) were wrongly scored as bots, and ${humans.verdicts.human} (${pct(humans.verdicts.human / humans.n)}) were confirmed human (realHuman ≥ ${thresholds.human}).`,
+      `${result.labels.human.human} of ${humans.n} human sessions (${pct(result.labels.human.human / humans.n)}) were confirmed 'human'; ${result.labels.human.unverified} were 'unverified' (no interaction to confirm them).`,
     );
-    if (humans.ruleOfThree !== null) {
-      lines.push(
-        `No human was scored as a bot. With 95% confidence the false-positive rate is below ${pct(humans.ruleOfThree)} (rule of three: 3 ÷ ${humans.n}).`,
-      );
-    }
     if (humans.n < 300) {
       lines.push(
         `Only ${humans.n} human sessions: that's too few to show a false-positive rate below 1% (at least 300 sessions with no false positives are needed).`,
@@ -112,6 +136,8 @@ export function renderHtml(result, meta) {
   const { humans, bots } = result;
   const verdictRow = (label, group) =>
     `<tr><th>${label}</th><td>${group.n}</td><td>${group.verdicts.human}</td><td>${group.verdicts.uncertain}</td><td>${group.verdicts.bot}</td><td>${group.verdicts.verified_agent}</td><td>${group.meanScore === null ? '–' : group.meanScore.toFixed(3)}</td></tr>`;
+  const labelRow = (name, n, counts) =>
+    `<tr><th>${name}</th><td>${n}</td><td>${counts.human}</td><td>${counts.unverified}</td><td>${counts.suspicious}</td><td>${counts.bot}</td><td>${counts.verified_agent}</td></tr>`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -150,22 +176,52 @@ export function renderHtml(result, meta) {
   </section>
 
   <section>
-    <h2>Headline numbers</h2>
+    <h2>Analytics filters</h2>
+    <p class="muted">What each recommended filter would do to your data. You want many bots removed and almost no humans.</p>
     <table>
-      <tr><th>Bots caught</th><td>${ci(bots.detected)}</td></tr>
-      <tr><th>Bots that passed as human</th><td>${ci(bots.passedAsHuman)}</td></tr>
-      <tr><th>Humans wrongly flagged as bots</th><td>${ci(humans.falsePositive)}</td></tr>
-      <tr><th>Humans not confirmed as human</th><td>${ci(humans.notConfirmedHuman)}</td></tr>
-      <tr><th>AUC</th><td>${result.auc === null ? '–' : result.auc.toFixed(3)}</td></tr>
+      <tr><th>Filter</th><th>Bots removed</th><th>Humans wrongly removed</th></tr>
+      <tr><th>Standard: exclude <code>bot</code></th><td>${ci(result.filters.standard.botsRemoved)}</td><td>${ci(result.filters.standard.humansRemoved)}</td></tr>
+      <tr><th>Strict: keep only <code>human</code> and <code>unverified</code></th><td>${ci(result.filters.strict.botsRemoved)}</td><td>${ci(result.filters.strict.humansRemoved)}</td></tr>
     </table>
   </section>
 
   <section>
-    <h2>Verdicts</h2>
+    <h2>Results by label</h2>
     <table>
-      <tr><th></th><th>Sessions</th><th>human</th><th>uncertain</th><th>bot</th><th>verified agent</th><th>Mean score</th></tr>
-      ${verdictRow('Labelled human', humans)}
-      ${verdictRow('Labelled bot', bots)}
+      <tr><th></th><th>Sessions</th><th>human</th><th>unverified</th><th>suspicious</th><th>bot</th><th>verified agent</th></tr>
+      ${labelRow('Known humans', humans.n, result.labels.human)}
+      ${labelRow('Known bots', bots.n, result.labels.bot)}
+    </table>
+  </section>
+
+  <section>
+    <h2>By bot scenario</h2>
+    <table>
+      <tr><th>Scenario</th><th>Sessions</th><th>bot</th><th>suspicious</th><th>unverified</th><th>human</th><th>Common reasons</th></tr>
+      ${
+        result.scenarios
+          .map(
+            (s) =>
+              `<tr><td><code>${esc(s.scenario)}</code></td><td>${s.n}</td><td>${s.labels.bot}</td><td>${s.labels.suspicious}</td><td>${s.labels.unverified}</td><td>${s.labels.human}</td><td>${s.topReasons.map((r) => `<code>${esc(r.code)}</code>`).join(', ')}</td></tr>`,
+          )
+          .join('') || '<tr><td colspan="7" class="muted">No bot sessions.</td></tr>'
+      }
+    </table>
+  </section>
+
+  <div class="grid2">
+    <section><h2>Why humans weren't confirmed</h2><p class="muted">Reason codes on known-human sessions not labelled <code>human</code>. Start tuning here.</p>${reasonList(humans.reasonsWhenNotHuman)}</section>
+    <section><h2>Why bots got through</h2><p class="muted">Reason codes on known-bot sessions labelled <code>human</code> or <code>unverified</code>.</p>${reasonList(bots.reasonsWhenMissed)}</section>
+  </div>
+
+  <section>
+    <h2>Score analysis</h2>
+    <p class="muted">The <code>realHuman</code> score ranks sessions; it is not a probability. These numbers show how well it separates humans from bots at the thresholds human ≥ ${result.thresholds.human}, bot ≤ ${result.thresholds.bot}.</p>
+    <table>
+      <tr><th></th><th>Sessions</th><th>≥ human</th><th>between</th><th>≤ bot</th><th>verified agent</th><th>Mean score</th></tr>
+      ${verdictRow('Known humans', humans)}
+      ${verdictRow('Known bots', bots)}
+      <tr><th>AUC</th><td colspan="6">${result.auc === null ? '–' : result.auc.toFixed(3)}</td></tr>
     </table>
   </section>
 
@@ -174,29 +230,9 @@ export function renderHtml(result, meta) {
     <section><h2>Score distribution</h2>${histogramChart(result.histogram.human, result.histogram.bot)}</section>
   </div>
 
-  <section>
-    <h2>By bot scenario</h2>
-    <table>
-      <tr><th>Scenario</th><th>Sessions</th><th>Caught</th><th>Uncertain</th><th>Passed as human</th><th>Mean score</th><th>Common reasons</th></tr>
-      ${
-        result.scenarios
-          .map(
-            (s) =>
-              `<tr><td><code>${esc(s.scenario)}</code></td><td>${s.n}</td><td>${s.verdicts.bot} (${pct(s.detected?.rate ?? null, 0)})</td><td>${s.verdicts.uncertain}</td><td>${s.verdicts.human}</td><td>${s.meanScore === null ? '–' : s.meanScore.toFixed(3)}</td><td>${s.topReasons.map((r) => `<code>${esc(r.code)}</code>`).join(', ')}</td></tr>`,
-          )
-          .join('') || '<tr><td colspan="7" class="muted">No bot sessions.</td></tr>'
-      }
-    </table>
-  </section>
-
-  <div class="grid2">
-    <section><h2>Why humans weren't confirmed</h2><p class="muted">Reason codes on human sessions that scored below the human threshold. Start tuning here.</p>${reasonList(humans.reasonsWhenNotHuman)}</section>
-    <section><h2>Why bots got through</h2><p class="muted">Reason codes on bot sessions that weren't scored as bots.</p>${reasonList(bots.reasonsWhenMissed)}</section>
-  </div>
-
   <section class="muted">
     <h2>How to read this</h2>
-    <p>Each session counts once, using its latest update. Confidence intervals are Wilson score intervals at 95%. Labels come from the test URL (<code>?label=human</code>) and the bot lab, so this report is only as good as the labelling: run human tests with people you trust, on the devices and browsers your real visitors use. Calibrate on one run and confirm on a fresh one, so the numbers aren't tuned to a single sample.</p>
+    <p>Each session counts once, using its latest update. Confidence intervals are Wilson score intervals at 95%. Ground truth comes from the test URL (<code>?truth=human</code>) and the bot lab, so this report is only as good as the labelling: run human tests with people you trust, on the devices and browsers your real visitors use. Calibrate on one run and confirm on a fresh one, so the numbers aren't tuned to a single sample.</p>
   </section>
 </main>
 </body>

@@ -30,13 +30,16 @@ page views, conversion rates and A/B test results.
 
 realHuman adds a small script to your site. The script quietly gathers **non-identifying** signals, such
 as how the mouse moves, how typing is paced and whether the browser is being remote-controlled. Your server
-combines those signals with what it can see of the network connection and works out a score:
+combines those signals with what it can see of the network connection and gives every visit a **label**,
+with the evidence behind it:
 
 ```json
-{ "realHuman": 0.94, "verdict": "human", "confidence": 0.71 }
+{ "label": "human", "botEvidence": "none", "humanEvidence": "strong", "primaryReason": "pointer_natural" }
 ```
 
-You then use that score to **filter your data**. realHuman never blocks, challenges or slows down a visitor,
+The five labels are `human`, `unverified` (no evidence either way, typically a quick visit), `suspicious`, `bot`
+and `verified_agent`. You then use the label to **filter your data**, for example `WHERE label <> 'bot'`. See
+[Understanding results](docs/guides/understanding-results.md). realHuman never blocks, challenges or slows down a visitor,
 and a visitor never sees anything different.
 
 ### What realHuman is *not*
@@ -68,10 +71,10 @@ sequenceDiagram
 
 1. **Collect.** The browser SDK watches for signals from the moment the page loads.
 2. **Send.** After `flushAfterMs` (default 1000 ms) it sends a summary to *your* server, and sends one final update as the page closes.
-3. **Score.** Your server adds network evidence (the [JA4](docs/glossary.md#ja4) TLS fingerprint, user agent and headers) and works out the score with either:
+3. **Score.** Your server adds network evidence (the [JA4](docs/glossary.md#ja4) TLS fingerprint, user agent and headers) and labels the visit with either:
    - the **algorithmic** engine (built in, free, explainable), or
    - the **[Jev](docs/guides/jev-engine.md)** engine (TypeSafe AI's decision model, via Vercel AI Gateway, OpenRouter or TypeSafe directly).
-4. **Deliver.** Your backend receives every decision. You can also choose to send the score back to the page for tools like New Relic.
+4. **Deliver.** Your backend receives every decision. You can also choose to send the label and score back to the page for tools like New Relic.
 
 Read the full version: [How it works](docs/getting-started/how-it-works.md).
 
@@ -97,7 +100,7 @@ pnpm build
 pnpm --filter @realhuman/demo start
 ```
 
-Open <http://localhost:3000>, move the mouse, scroll and type. Your score appears at the top of the page, and
+Open <http://localhost:3000>, move the mouse, scroll and type. Your label appears at the top of the page, and
 the server's decision records, reason codes included, appear in the table below. To see bots being caught, run
 `pnpm --filter @realhuman/bot-lab lab` (it uses your installed Chrome).
 
@@ -139,7 +142,7 @@ init(); // defaults: endpoint '/api/realhuman', first update after 1000 ms
 ```
 
 **Step 5: deploy and check.** Open your site, wait a couple of seconds, then look at your function logs in
-the Vercel dashboard. You should see a decision record with a `realHuman` score.
+the Vercel dashboard. You should see a decision record with a `label`.
 
 Full walkthroughs: [Vercel](docs/getting-started/quickstart-vercel.md) · [CloudFront](docs/getting-started/quickstart-cloudfront.md) · [Node.js](docs/getting-started/quickstart-node.md)
 

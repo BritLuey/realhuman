@@ -15,21 +15,25 @@ That skews:
 
 ## What realHuman does
 
-realHuman gives each page load a **score between 0 and 1**:
+realHuman answers two questions about each page load, "did we see a bot?" and "did we see a person?", and
+combines the answers into a **label**:
 
-| Score | Meaning |
+| Label | Meaning |
 |---|---|
-| close to `1` | Very likely a real person |
-| around `0.5` | Not enough evidence either way |
-| close to `0` | Very likely automated |
+| `human` | Real interaction was seen, and no meaningful sign of automation |
+| `unverified` | No evidence either way, typically someone who opened the page and left |
+| `suspicious` | Some signs of automation, but nothing conclusive |
+| `bot` | Strong or conclusive signs of automation |
+| `verified_agent` | An AI agent or crawler that proved who it is |
 
-It also gives a **verdict** (`human`, `bot`, `verified_agent` or `uncertain`), a **confidence** value
-(how much evidence there was), and **reason codes** (why it decided that).
+Each decision also includes the **main reason** for its label (for example "Natural mouse movement"), every
+**reason code** behind it, and a **score** from 0 to 1 for ranking sessions.
 
-You use these to **filter your data**, for example "only count page views where `realHuman ≥ 0.5`".
+You use the label to **filter your data**, for example "only count page views where `label <> 'bot'`".
+[Understanding results](../guides/understanding-results.md) explains exactly how each label is decided.
 
 > [!IMPORTANT]
-> realHuman **never blocks anyone**. The visitor's experience is the same whatever their score.
+> realHuman **never blocks anyone**. The visitor's experience is the same whatever their label.
 > The score is for your data and reporting only.
 
 ## How it decides, in plain English

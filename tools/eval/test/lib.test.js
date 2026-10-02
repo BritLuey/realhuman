@@ -4,10 +4,12 @@ import {
   auc,
   evaluate,
   histogram,
+  labelOf,
   latestPerSession,
   parseNdjson,
   roc,
   sessionsNeededForBound,
+  truthOf,
   wilson,
 } from '../lib.js';
 
@@ -108,4 +110,54 @@ test('rule of three applies when no human was flagged', () => {
 
 test('histogram puts 1.0 in the last bin', () => {
   assert.deepEqual(histogram([0, 0.05, 0.95, 1]), [2, 0, 0, 0, 0, 0, 0, 0, 0, 2]);
+});
+
+test('labels and analytics filters', () => {
+  const withLabel = (sid, contextLabel, label) => ({
+    ...rec(sid, contextLabel, 0.5),
+    label,
+  });
+  const records = [
+    withLabel('h1', 'human', 'human'),
+    withLabel('h2', 'human', 'unverified'),
+    withLabel('h3', 'human', 'suspicious'),
+    withLabel('b1', 'bot', 'bot'),
+    withLabel('b2', 'bot', 'suspicious'),
+    withLabel('b3', 'bot', 'human'),
+  ];
+  const result = evaluate(records);
+  assert.deepEqual(result.labels.human, {
+    human: 1,
+    unverified: 1,
+    suspicious: 1,
+    bot: 0,
+    verified_agent: 0,
+  });
+  assert.equal(result.filters.standard.botsRemoved.k, 1);
+  assert.equal(result.filters.standard.humansRemoved.k, 0);
+  assert.equal(result.filters.standard.humansRemovedUpperBound, 1); // 3 / 3 humans
+  assert.equal(result.filters.strict.botsRemoved.k, 2);
+  assert.equal(result.filters.strict.humansRemoved.k, 1);
+  assert.equal(result.filters.strict.humansRemovedUpperBound, null);
+  assert.deepEqual(
+    result.bots.reasonsWhenMissed,
+    [],
+    'b3 got through but has no reasons in this fixture',
+  );
+});
+
+test('records from older engines get a label from their verdict', () => {
+  assert.equal(labelOf({ verdict: 'uncertain' }), 'unverified');
+  assert.equal(labelOf({ verdict: 'bot' }), 'bot');
+  assert.equal(labelOf({ verdict: 'human', label: 'suspicious' }), 'suspicious');
+});
+
+test('ground truth comes from context.truth, with context.label as the older spelling', () => {
+  const result = evaluate([
+    { ...rec('a', null, 0.9), context: { truth: 'human' } },
+    { ...rec('b', null, 0.1), context: { label: 'bot' } },
+  ]);
+  assert.equal(result.humans.n, 1);
+  assert.equal(result.bots.n, 1);
+  assert.equal(truthOf({ context: { truth: 'bot', label: 'human' } }), 'bot');
 });

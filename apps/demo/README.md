@@ -9,7 +9,7 @@ pnpm build
 pnpm --filter @realhuman/demo start
 ```
 
-Open <http://localhost:3000>. Move the mouse, scroll, type in the form and press **Score now**. Your score
+Open <http://localhost:3000>. Move the mouse, scroll, type in the form and press **Score now**. Your label
 appears at the top, and the server-side records, reason codes included, appear in the table.
 
 | Setting | How |

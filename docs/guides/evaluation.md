@@ -58,7 +58,7 @@ percentage points. `--repeat=20` in the bot lab does this.
 Send testers this link (with your demo address and run id):
 
 ```
-https://<your-demo>/?label=human&run=pilot-1
+https://<your-demo>/?truth=human&run=pilot-1
 ```
 
 Optionally add `&participant=p01` and so on, so you can follow up on odd results.
@@ -81,8 +81,8 @@ Optionally add `&participant=p01` and so on, so you can follow up on odd results
 - [ ] An older or slower device
 - [ ] Someone who just glances at the page and leaves (short sessions are real too)
 
-Only send the `label=human` link to people you trust to be human. The labels are only as good as the people
-using them.
+Only send the `truth=human` link to people you trust to be human. The results are only as good as that
+ground truth.
 
 ## Step 4: Collect bot sessions
 
@@ -104,7 +104,7 @@ To test tools the lab doesn't include (for example `curl-impersonate`, undetecte
 AI browser agent), point them at:
 
 ```
-https://<your-demo>/?label=bot&scenario=<name>&run=pilot-1
+https://<your-demo>/?truth=bot&scenario=<name>&run=pilot-1
 ```
 
 ## Step 5: Build the report
@@ -116,10 +116,14 @@ DEMO_ADMIN_TOKEN=<your token> pnpm --filter @realhuman/eval report -- --url=http
 This prints the findings and writes `eval-report.html`, a self-contained page you can share. It contains:
 
 - **Findings** in plain English, with 95% confidence intervals
-- **Headline numbers:** bots caught, bots that passed as human, humans flagged, humans not confirmed, AUC
+- **Analytics filters:** how many bots and how many real people the standard (`label <> 'bot'`) and strict
+  (`label IN ('human', 'unverified')`) filters remove, with confidence intervals. These are the numbers that
+  matter for your reporting
+- **Results by label** for known humans and known bots
 - **ROC curve:** the trade-off between catching bots and flagging humans at every threshold
 - **Score distribution:** humans versus bots
-- **Per-scenario results**
+- **Per-scenario results**, by label
+- **Score analysis:** AUC and threshold-based counts for the `realHuman` score
 - **Why humans weren't confirmed** and **why bots got through:** the reason codes to look at when tuning
 
 To try other thresholds without changing anything in production: `--human=0.8 --bot=0.2`.
@@ -163,7 +167,7 @@ Lab and tester results are a good start, but your real visitors are the final te
 - Deploy to your site in `server` delivery mode, so nothing changes for visitors, and store the records.
 - Find groups whose labels you can trust without asking: people who completed a purchase or signed in are almost
   certainly human. Traffic from data-centre networks, or requests marked `ua_bot`, are almost certainly bots.
-- Compare their scores using the same report. Records just need `context.label` set, so add it in your pipeline
+- Compare their scores using the same report. Records just need `context.truth` set, so add it in your pipeline
   before running the tool.
 - When changing engines or weights, use [shadow mode](shadow-mode.md) to compare old and new on the same traffic.
 

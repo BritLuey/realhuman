@@ -6,7 +6,7 @@
 //   pnpm --filter @realhuman/bot-lab lab -- --only=browser        # scenarios whose name contains "browser"
 //   BOT_LAB_BROWSER=msedge pnpm --filter @realhuman/bot-lab lab
 //
-// Every session is labelled `label=bot`, `scenario=<slug>` and `run=<run id>` in its decision record's
+// Every session is marked `truth=bot`, `scenario=<slug>` and `run=<run id>` in its decision record's
 // context, so the evaluation tool (tools/eval) can combine these runs with labelled human sessions.
 //
 // Locally there's no CDN, so scenarios simulate the JA4 header a CDN would add. Against a deployed
@@ -65,7 +65,7 @@ async function latestDecision(sid, { minSeq = 0, timeoutMs = 8000 } = {}) {
 }
 
 function pageUrl(slug) {
-  return `${BASE}/?label=bot&scenario=${encodeURIComponent(slug)}&run=${encodeURIComponent(RUN)}`;
+  return `${BASE}/?truth=bot&scenario=${encodeURIComponent(slug)}&run=${encodeURIComponent(RUN)}`;
 }
 
 /** Headers a CDN would add. Only meaningful locally; a real CDN overwrites them. */
@@ -134,7 +134,7 @@ async function httpScenario(slug, { initHeaders, scoreHeaders = initHeaders }) {
       elapsedMs: 1100,
       wallElapsedMs: 1100,
       nonceAgeMs: 1000,
-      context: { label: 'bot', scenario: slug, run: RUN },
+      context: { truth: 'bot', scenario: slug, run: RUN },
       signals: forgedHumanSignals(),
     }),
   });
@@ -394,14 +394,20 @@ try {
           results.push({
             scenario: scenario.slug,
             realHuman: record.realHuman,
+            label: record.label,
             verdict: record.verdict,
+            botEvidence: record.botEvidence,
+            humanEvidence: record.humanEvidence,
+            primaryReason: record.primaryReason,
             kind: record.kind,
             engine: record.engine,
             reasons: record.reasons,
             ja4: record.server.ja4,
             signals: record.signals,
           });
-          console.log(`${record.verdict} (${record.realHuman}) ${record.reasons.join(', ')}`);
+          console.log(
+            `${record.label ?? record.verdict} (bot evidence ${record.botEvidence}, score ${record.realHuman}) ${record.reasons.join(', ')}`,
+          );
         }
       } catch (error) {
         results.push({ scenario: scenario.slug, error: String(error?.message ?? error) });
@@ -426,10 +432,9 @@ try {
 }
 
 const scored = results.filter((r) => r.verdict);
-const caught = scored.filter((r) => r.verdict === 'bot').length;
-const missed = scored.filter((r) => r.verdict === 'human').length;
+const count = (label) => scored.filter((r) => (r.label ?? r.verdict) === label).length;
 console.log(
-  `\n${caught}/${scored.length} sessions scored as bot, ${scored.length - caught - missed} uncertain, ${missed} as human.`,
+  `\n${count('bot')}/${scored.length} sessions labelled bot, ${count('suspicious')} suspicious, ${count('unverified')} unverified, ${count('human')} human.`,
 );
 
 mkdirSync(join(here, 'results'), { recursive: true });

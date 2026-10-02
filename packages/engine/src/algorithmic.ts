@@ -1,5 +1,6 @@
-import type { Kind, ReasonCode } from '@realhuman/schema';
-import type { Analysis, EvidenceGroup, Scorer, ScorerContext, ScorerResult } from './scorer.js';
+import type { Kind, Label, ReasonCode } from '@realhuman/schema';
+import { botEvidenceLevel, humanEvidenceLevel, labelFor } from './levels.js';
+import type { Analysis, EvidenceGroup, Scorer, ScorerResult } from './scorer.js';
 
 /** Starting log-odds before any evidence: most sessions that run JavaScript are people. */
 export const PRIOR = 0.4;
@@ -23,11 +24,13 @@ function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
 
-/** Scores an analysis with the weighted-evidence model. Pure and synchronous. */
-export function scoreAlgorithmically(
-  analysis: Analysis,
-  thresholds: { human: number; bot: number },
-): ScorerResult {
+/**
+ * Scores an analysis with the weighted-evidence model. Pure and synchronous.
+ *
+ * `realHuman` ranks sessions (higher = more human-like evidence). It is not a calibrated
+ * probability; for filtering, use the label from `labelFor`.
+ */
+export function scoreAlgorithmically(analysis: Analysis): ScorerResult {
   const totals: Record<EvidenceGroup, number> = { environment: 0, network: 0, behaviour: 0 };
   for (const item of analysis.evidence) totals[item.group] += item.weight;
 
@@ -52,21 +55,27 @@ export function scoreAlgorithmically(
     ),
   );
 
+  const label = labelFor(
+    botEvidenceLevel(analysis),
+    humanEvidenceLevel(analysis),
+    analysis.server.verifiedAgent !== null,
+  );
   const reasons: ReasonCode[] = [...analysis.evidence.map((e) => e.code), ...analysis.neutral];
-  return { realHuman, confidence, kind: inferKind(analysis, realHuman, thresholds), reasons };
+  return { realHuman, confidence, kind: inferKind(analysis, label), reasons };
 }
 
 function has(analysis: Analysis, code: ReasonCode): boolean {
   return analysis.evidence.some((e) => e.code === code);
 }
 
-export function inferKind(
-  analysis: Analysis,
-  realHuman: number,
-  thresholds: { human: number; bot: number },
-): Kind {
-  if (realHuman > thresholds.bot && analysis.privacyBrowser) return 'privacy_browser';
-  if (realHuman >= thresholds.human) return 'human';
+/** What is most likely driving the session, given its label and evidence. */
+export function inferKind(analysis: Analysis, label: Label): Kind {
+  if (label === 'verified_agent') return 'verified_agent';
+  if (label === 'human' || label === 'unverified') {
+    if (analysis.privacyBrowser) return 'privacy_browser';
+    if (label === 'human') return 'human';
+    return analysis.signals ? 'unknown' : 'no_js';
+  }
   if (
     has(analysis, 'webdriver') ||
     has(analysis, 'synthetic_events') ||
@@ -83,14 +92,13 @@ export function inferKind(
     return 'scraper';
   }
   if (!analysis.signals) return 'no_js';
-  if (realHuman <= thresholds.bot) return 'automation';
-  return 'unknown';
+  return label === 'bot' ? 'automation' : 'unknown';
 }
 
 /** The built-in engine. */
 export const algorithmicScorer: Scorer = {
   name: 'algorithmic',
-  async score(analysis: Analysis, ctx: ScorerContext): Promise<ScorerResult> {
-    return scoreAlgorithmically(analysis, ctx.thresholds);
+  async score(analysis: Analysis): Promise<ScorerResult> {
+    return scoreAlgorithmically(analysis);
   },
 };

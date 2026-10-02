@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Re-scores decision records (NDJSON, one record per line) with the installed engine.
+// Re-scores decision records (NDJSON, one record per line) with the installed engine, so stored
+// sessions get the latest labels, evidence levels and scores.
 //
 //   realhuman-rescore < records.ndjson > rescored.ndjson
-//   realhuman-rescore --human 0.8 --bot 0.2 < records.ndjson
 //
 // Invalid lines are reported on stderr and skipped.
 import { createInterface } from 'node:readline';
@@ -12,28 +12,11 @@ import { rescore, VERSION } from '../dist/index.js';
 const args = process.argv.slice(2);
 if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write(
-    'Usage: realhuman-rescore [--human <0-1>] [--bot <0-1>] < in.ndjson > out.ndjson\n' +
+    'Usage: realhuman-rescore < in.ndjson > out.ndjson\n' +
       `Re-scores realHuman decision records with engine ${VERSION}.\n`,
   );
   process.exit(0);
 }
-
-function flag(name) {
-  const index = args.indexOf(name);
-  if (index === -1) return undefined;
-  const value = Number(args[index + 1]);
-  if (!Number.isFinite(value)) {
-    process.stderr.write(`${name} needs a number between 0 and 1\n`);
-    process.exit(2);
-  }
-  return value;
-}
-
-const thresholds = {};
-const human = flag('--human');
-const bot = flag('--bot');
-if (human !== undefined) thresholds.human = human;
-if (bot !== undefined) thresholds.bot = bot;
 
 const silent = { debug() {}, info() {}, warn() {}, error: (...a) => console.error(...a) };
 let line = 0;
@@ -60,7 +43,7 @@ for await (const text of createInterface({
     skipped++;
     continue;
   }
-  const record = await rescore(parsed.output, { thresholds, logger: silent });
+  const record = await rescore(parsed.output, { logger: silent });
   process.stdout.write(`${JSON.stringify(record)}\n`);
   rescored++;
 }

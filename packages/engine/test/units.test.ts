@@ -24,7 +24,6 @@ import {
 } from './helpers.js';
 
 const noLists = { browser: [], nonBrowser: [] };
-const thresholds = { human: 0.7, bot: 0.3 };
 
 async function keysFor(current: string, previous?: string) {
   const options = resolveOptions({
@@ -262,7 +261,7 @@ describe('analysis and algorithmic scoring', () => {
   it('scores natural behaviour in a consistent browser as human', () => {
     const analysis = analyze({ signals: humanSignals(), server, ja4Lists: noLists });
     expect(analysis.gates).toEqual([]);
-    const result = scoreAlgorithmically(analysis, thresholds);
+    const result = scoreAlgorithmically(analysis);
     expect(result.realHuman).toBeGreaterThanOrEqual(0.9);
     expect(result.kind).toBe('human');
     expect(result.reasons).toEqual(
@@ -273,7 +272,7 @@ describe('analysis and algorithmic scoring', () => {
 
   it('scores an automated headless browser as a bot', () => {
     const analysis = analyze({ signals: botSignals(), server, ja4Lists: noLists });
-    const result = scoreAlgorithmically(analysis, thresholds);
+    const result = scoreAlgorithmically(analysis);
     expect(result.realHuman).toBeLessThan(0.05);
     expect(result.kind).toBe('automation');
     expect(result.reasons).toEqual(
@@ -289,7 +288,6 @@ describe('analysis and algorithmic scoring', () => {
   it('treats no interaction as low confidence, not as bot evidence', () => {
     const result = scoreAlgorithmically(
       analyze({ signals: idleSignals(), server, ja4Lists: noLists }),
-      thresholds,
     );
     expect(result.realHuman).toBeGreaterThan(0.5);
     expect(result.confidence).toBeLessThan(0.5);
@@ -316,7 +314,7 @@ describe('analysis and algorithmic scoring', () => {
     expect(codes).not.toContain('native_tamper');
     expect(codes).not.toContain('worker_mismatch');
     expect(codes).not.toContain('timezone_mismatch');
-    const result = scoreAlgorithmically(analysis, thresholds);
+    const result = scoreAlgorithmically(analysis);
     expect(result.kind).toBe('privacy_browser');
     expect(result.reasons).toContain('privacy_browser');
   });
@@ -336,7 +334,7 @@ describe('analysis and algorithmic scoring', () => {
       .reduce((sum, e) => sum + e.weight, 0);
     expect(envTotal).toBeLessThan(-6);
     // Capped at -6 for environment + -5 for behaviour + prior 0.4 → sigmoid(-10.6)
-    expect(scoreAlgorithmically(analysis, thresholds).realHuman).toBeCloseTo(0, 3);
+    expect(scoreAlgorithmically(analysis).realHuman).toBeCloseTo(0, 3);
   });
 
   it('gates honeypots, automation markers, declared bots and non-browser TLS', () => {
@@ -436,7 +434,6 @@ describe('embedded browsers', () => {
   it('treat a zero outer window size as weak evidence on desktop', () => {
     const result = scoreAlgorithmically(
       analyze({ signals: withZeroOuter(), server, ja4Lists: noLists }),
-      thresholds,
     );
     // Uncertain at worst, never pushed towards bot by this marker alone.
     expect(result.realHuman).toBeGreaterThan(0.45);

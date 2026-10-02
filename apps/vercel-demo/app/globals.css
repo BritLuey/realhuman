@@ -203,3 +203,37 @@ pre.record {
   border: 1px solid var(--line);
   border-radius: 8px;
 }
+
+.score.label {
+  font-size: 36px;
+}
+
+.score.label.human {
+  color: var(--good);
+}
+
+.score.label.bot {
+  color: var(--bad);
+}
+
+.score.label.suspicious,
+.score.label.unverified {
+  color: var(--warn);
+}
+
+table.levels {
+  border-collapse: collapse;
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+table.levels th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 3px 16px 3px 0;
+}
+
+table.levels td {
+  padding: 3px 0;
+}

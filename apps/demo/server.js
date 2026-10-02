@@ -25,7 +25,7 @@ const log = [];
 
 const realHuman = createNodeHandler({
   deliver: 'both',
-  clientFields: ['realHuman', 'verdict', 'kind', 'confidence'],
+  clientFields: ['realHuman', 'label', 'verdict', 'kind', 'confidence'],
   ja4Header: process.env.DEMO_TRUST_JA4_HEADER ?? undefined,
   onDecision: (record) => {
     log.push(record);
@@ -37,7 +37,7 @@ const realHuman = createNodeHandler({
       while (decisions.size > 200) decisions.delete(decisions.keys().next().value);
     }
     console.log(
-      `[demo] ${record.sid} #${record.seq}${record.final ? ' final' : ''} ${record.verdict.padEnd(9)} ${record.realHuman.toFixed(3)} ${record.reasons.join(',')}`,
+      `[demo] ${record.sid} #${record.seq}${record.final ? ' final' : ''} ${record.label.padEnd(10)} bot:${record.botEvidence} human:${record.humanEvidence} ${record.realHuman.toFixed(3)} ${record.reasons.join(',')}`,
     );
   },
 });
@@ -72,7 +72,7 @@ const page = `<!doctype html>
   <p class="lead">Move the mouse, scroll and type below, then press <b>Score now</b>. A final update is sent when you leave the page.</p>
 
   <section aria-live="polite">
-    <div class="muted">Your latest score</div>
+    <div class="muted">Your latest result</div>
     <div><span class="score" id="score">…</span><span class="pill" id="verdict">waiting</span><span class="pill" id="confidence"></span></div>
     <div class="muted" id="sid"></div>
   </section>
@@ -88,16 +88,18 @@ const page = `<!doctype html>
 
   <section>
     <div class="muted" style="margin-bottom:8px">Recent decisions (server-side records, including reason codes)</div>
-    <table><thead><tr><th>Session</th><th>#</th><th>Score</th><th>Verdict</th><th>Reasons</th></tr></thead><tbody id="rows"></tbody></table>
+    <table><thead><tr><th>Session</th><th>#</th><th>Label</th><th>Bot / human evidence</th><th>Score</th><th>Reasons</th></tr></thead><tbody id="rows"></tbody></table>
   </section>
   <div style="height:60vh" class="muted">Scroll space.</div>
 </main>
 <script type="module">
-  // Labels in the URL (?label=human&run=…) are copied into each record's context for evaluation.
+  // Test markers in the URL (?truth=human&run=…) are copied into each record's context for evaluation.
   import { init } from '/sdk/index.js';
   const params = new URLSearchParams(location.search);
   const context = {};
-  for (const key of ['label', 'run', 'scenario', 'participant']) {
+  const truth = params.get('truth') ?? params.get('label');
+  if (truth === 'human' || truth === 'bot') context.truth = truth;
+  for (const key of ['run', 'scenario', 'participant']) {
     const value = params.get(key);
     if (value && /^[A-Za-z0-9_.-]{1,64}$/.test(value)) context[key] = value;
   }
@@ -107,8 +109,8 @@ const page = `<!doctype html>
   const $ = (id) => document.getElementById(id);
   window.addEventListener('realhuman:result', (event) => {
     const r = event.detail;
-    $('score').textContent = r.realHuman.toFixed(2);
-    $('verdict').textContent = r.verdict;
+    $('score').textContent = r.label;
+    $('verdict').textContent = 'score ' + r.realHuman.toFixed(2);
     $('confidence').textContent = 'confidence ' + r.confidence.toFixed(2);
     $('sid').textContent = 'sid ' + r.sid + ' · update #' + r.seq;
   });
@@ -122,7 +124,7 @@ const page = `<!doctype html>
       const list = await (await fetch('/decisions')).json();
       $('rows').replaceChildren(...list.slice(0, 15).map((d) => {
         const tr = document.createElement('tr');
-        for (const text of [d.sid.slice(0, 8) + '…', d.seq, d.realHuman.toFixed(3), d.verdict, d.reasons.join(', ')]) {
+        for (const text of [d.sid.slice(0, 8) + '…', d.seq, d.label, d.botEvidence + ' / ' + d.humanEvidence, d.realHuman.toFixed(3), d.reasons.join(', ')]) {
           const td = document.createElement('td'); td.textContent = String(text); tr.append(td);
         }
         return tr;

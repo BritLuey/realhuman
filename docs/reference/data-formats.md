@@ -98,8 +98,9 @@ Returned by `POST {endpoint}/score` in `client` or `both` delivery mode. Only th
 | `v` | `1` | yes | Schema version |
 | `sid` | string | yes | Session id |
 | `seq` | integer | yes | Which update this answers |
-| `realHuman` | number 0–1 | if allowed | Score |
-| `verdict` | [Verdict](#verdict) | if allowed | Headline outcome |
+| `realHuman` | number 0–1 | if allowed | Score, for ranking |
+| `label` | [Label](#label) | if allowed | The label to filter on |
+| `verdict` | [Verdict](#verdict) | if allowed | Coarse version of the label |
 | `kind` | [Kind](#kind) | if allowed | What's driving the session |
 | `confidence` | number 0–1 | if allowed | How much evidence there was |
 
@@ -116,17 +117,21 @@ Passed to `onDecision` for every update. **This is the source of truth for filte
 | `seq` | integer | Update number. **Keep the highest per `sid`.** |
 | `final` | boolean | `true` if this update was sent as the page closed. Don't rely on it arriving. |
 | `ts` | ISO 8601 string | When the server decided |
-| `realHuman` | number 0–1 | The score. Higher means more likely human. |
-| `verdict` | [Verdict](#verdict) | Headline outcome, from `realHuman` and your `thresholds` |
+| `label` | [Label](#label) | **The field to filter on.** Decided from the two evidence levels below. |
+| `botEvidence` | `none` \| `weak` \| `moderate` \| `strong` \| `conclusive` | How much evidence of automation was seen |
+| `humanEvidence` | `none` \| `some` \| `strong` | How much evidence of a real person was seen |
+| `primaryReason` | [reason code](reason-codes.md) \| null | The single reason that best explains the label |
+| `realHuman` | number 0–1 | Score for ranking sessions. Higher means more human-like evidence. **Not a probability.** |
+| `verdict` | [Verdict](#verdict) | Coarse version of `label`, kept for compatibility |
 | `kind` | [Kind](#kind) | What's driving the session |
 | `confidence` | number 0–1 | How much evidence was available. Low early in a visit, or with no interaction. |
-| `reasons` | string[] | [Reason codes](reason-codes.md) explaining the decision |
+| `reasons` | string[] | Every [reason code](reason-codes.md) behind the decision |
 | `engine` | `algorithmic` \| `jev` \| `algorithmic-fallback` \| `gate` | Who decided. `gate` means a conclusive check settled it. |
 | `engineVersion` | string | Version of the engine package, for re-scoring and audits |
 | `model` | string, optional | Model id (Jev only) |
 | `provider` | string, optional | Provider used (Jev only) |
 | `questionsVersion` | string, optional | Version of the question wording (Jev only) |
-| `shadow` | object, optional | The shadow engine's `{ engine, realHuman, verdict, reasons }`. See [Shadow mode](../guides/shadow-mode.md). |
+| `shadow` | object, optional | The shadow engine's `{ engine, realHuman, label, verdict, reasons }`. See [Shadow mode](../guides/shadow-mode.md). |
 | `server` | [Server facts](#server-facts) | Network evidence read at the edge |
 | `signals` | [Signals](#signals) or `null` | What the browser observed. `null` when the SDK never ran (`kind: "no_js"`). |
 | `context` | object | Your join keys, copied from the payload |
@@ -142,17 +147,31 @@ Passed to `onDecision` for every update. **This is the source of truth for filte
 | `timezoneMatch` | boolean \| null | Does the browser's time zone match the IP's? `null` if either is unknown. |
 | `secFetchPresent` | boolean | Were fetch-metadata headers present? |
 | `clientHintsPresent` | boolean | Were User-Agent Client Hints present? |
-| `clientHintsMismatch` | boolean | null | Do the Client Hints contradict the user agent? `null` when absent. |
+| `clientHintsMismatch` | boolean \| null | Do the Client Hints contradict the user agent? `null` when absent. |
 | `verifiedAgent` | string \| null | Agent name from a valid Web Bot Auth signature |
 
-### Verdict
+### Label
 
 | Value | Meaning |
 |---|---|
-| `human` | `realHuman` ≥ `thresholds.human` (default 0.7) |
-| `bot` | `realHuman` ≤ `thresholds.bot` (default 0.3) |
+| `human` | Human evidence, and at most weak bot evidence |
+| `unverified` | No human evidence, and at most weak bot evidence (typically a quick visit) |
+| `suspicious` | Moderate bot evidence |
+| `bot` | Strong or conclusive bot evidence |
 | `verified_agent` | An AI agent or crawler that proved its identity with Web Bot Auth |
-| `uncertain` | In between, or not enough evidence yet |
+
+How the evidence levels are worked out: [Understanding results](../guides/understanding-results.md).
+
+### Verdict
+
+A coarser version of the label, kept for compatibility:
+
+| Value | Labels |
+|---|---|
+| `human` | `human` |
+| `uncertain` | `unverified`, `suspicious` |
+| `bot` | `bot` |
+| `verified_agent` | `verified_agent` |
 
 ### Kind
 
@@ -176,6 +195,10 @@ Passed to `onDecision` for every update. **This is the source of truth for filte
   "seq": 1,
   "final": true,
   "ts": "2026-10-01T12:00:00.000Z",
+  "label": "human",
+  "botEvidence": "none",
+  "humanEvidence": "strong",
+  "primaryReason": "pointer_natural",
   "realHuman": 0.91,
   "verdict": "human",
   "kind": "human",

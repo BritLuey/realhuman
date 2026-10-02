@@ -21,7 +21,8 @@ pnpm --filter @realhuman/eval report -- records.ndjson more.ndjson
 | `--out=report.html` | Where to write the HTML report (default `eval-report.html`) |
 | `--json` | Print the raw numbers as JSON instead |
 
-Records are labelled by `context.label` (`human` or `bot`), which the demo sets from `?label=` in the page URL
-and the bot lab sets automatically. Each session counts once, using its latest update.
+Sessions are marked as known humans or known bots by `context.truth` (`human` or `bot`), which the demo sets
+from `?truth=` in the page URL and the bot lab sets automatically. (`?label=` / `context.label` from earlier
+versions still work.) The report compares that truth with realHuman's own `label`. Each session counts once, using its latest update.
 
 The full method: [Proving it works](../../docs/guides/evaluation.md).

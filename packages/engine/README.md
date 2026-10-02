@@ -46,14 +46,13 @@ When the engine improves, re-score historical decision records from their stored
 
 ```bash
 npx realhuman-rescore < decisions.ndjson > rescored.ndjson
-npx realhuman-rescore --human 0.8 --bot 0.2 < decisions.ndjson
 ```
 
 Or in code:
 
 ```ts
 import { rescore } from '@realhuman/engine';
-const updated = await rescore(record, { thresholds: { human: 0.8, bot: 0.2 } });
+const updated = await rescore(record); // fresh label, evidence levels, score and reasons
 ```
 
 ## Plug in another decision-maker

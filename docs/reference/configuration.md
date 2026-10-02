@@ -61,10 +61,10 @@ and `createWebHandler` (Node).
 | `engine` | `'algorithmic'` or a `jev(…)` engine | `'algorithmic'` | Who makes the decision. See [Jev engine](../guides/jev-engine.md). |
 | `shadow` | `'algorithmic'` or a `jev(…)` engine | none | Run a second engine and store its answer in `record.shadow`. See [Shadow mode](../guides/shadow-mode.md). |
 | `deliver` | `'server'` \| `'client'` \| `'both'` | `'server'` | Who receives results. See [Delivery modes](../guides/delivery-modes.md). |
-| `clientFields` | `Array<'realHuman' \| 'verdict' \| 'kind' \| 'confidence'>` | `['realHuman', 'verdict', 'confidence']` | Fields the browser may receive. `sid` and `seq` are always included. Reason codes can never be exposed. |
+| `clientFields` | `Array<'realHuman' \| 'label' \| 'verdict' \| 'kind' \| 'confidence'>` | `['realHuman', 'label', 'verdict', 'confidence']` | Fields the browser may receive. `sid` and `seq` are always included. Reason codes, evidence levels and `primaryReason` can never be exposed. |
 | `onDecision` | `(record: DecisionRecord) => void \| Promise<void>` | none | Receives every decision. On Vercel and Node.js it runs after the response is sent; on AWS Lambda it finishes before the response is returned, because Lambda pauses as soon as it responds. A warning is logged at start-up if `deliver` includes `server` and this is missing. |
 | `onDecisionTimeoutMs` | `number` | `10000` | Maximum time `onDecision` may run before it is abandoned (and logged). |
-| `thresholds` | `{ human: number; bot: number }` | `{ human: 0.7, bot: 0.3 }` | `realHuman ≥ human` gives verdict `human`; `realHuman ≤ bot` gives `bot`; anything between is `uncertain`. |
+| `thresholds` | `{ human: number; bot: number }` | `{ human: 0.7, bot: 0.3 }` | Only used with a model engine such as Jev: a model probability at or below `bot` makes the label `bot`, and one at or above `human` turns `unverified` into `human`. Labels from the algorithmic engine come from evidence levels, not thresholds; see [Understanding results](../guides/understanding-results.md). |
 | `secretEnv` | `string` | `'REALHUMAN_SECRET'` | **Name** of the environment variable holding the signing secret (at least 32 random bytes, base64). |
 | `previousSecretEnv` | `string` | `'REALHUMAN_SECRET_PREVIOUS'` | **Name** of the variable holding the previous secret during [rotation](../operations/security.md#rotating-the-secret). Optional. |
 | `nonceTtlMs` | `number` | `900000` (15 min) | How long a session nonce is valid. The SDK refreshes it automatically on long-lived pages. |
@@ -109,7 +109,7 @@ Network-only labelling for every request, including clients that never run JavaS
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `onTag` | `(tag: EdgeTag) => void \| Promise<void>` | required | Receives `{ ts, path, realHuman, verdict, kind, reasons, server }` for each request. |
+| `onTag` | `(tag: EdgeTag) => void \| Promise<void>` | required | Receives `{ ts, path, realHuman, label, verdict, kind, primaryReason, reasons, server }` for each request. |
 | `forwardHeader` | `string` or `false` | `'x-realhuman-edge'` | Adds a summary header to the request your app receives, so server-side logging can include it. |
 | `sampleRate` | `number` | `1` | Fraction of requests to tag (0–1). |
 

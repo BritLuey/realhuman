@@ -38,9 +38,9 @@ header.
 
 Without JA4 realHuman still works, with less network evidence.
 
-### Everything is `uncertain`
+### Everything is `unverified`
 
-- **Short visits with little interaction** genuinely give little evidence. Check `confidence`; low values are expected here.
+- **Short visits with little interaction** genuinely give no evidence either way, so they're `unverified`, not `human`. That's expected, and the standard and strict filters both keep them.
 - **The page-close update isn't arriving.** Check for `final: true` records. Some browsers drop requests on close. Calling `rh.score()` at key moments helps.
 - **The secret is missing.** Look for a start-up error about `REALHUMAN_SECRET` in the server logs.
 

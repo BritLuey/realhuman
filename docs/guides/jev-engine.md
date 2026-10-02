@@ -128,6 +128,18 @@ JA4 fingerprint, and the algorithmic engine's evidence codes with their weights,
 The question wording is versioned (`questionsVersion` in each record), so you can tell which wording
 produced which scores.
 
+## How Jev affects the label
+
+The evidence levels are always worked out from the signals, exactly as with the algorithmic engine. Jev's
+probability can then settle cases the evidence left open:
+
+- At or below `thresholds.bot` (default 0.3), the label becomes `bot`.
+- At or above `thresholds.human` (default 0.7), `unverified` becomes `human`.
+- Jev never overrides a `bot` label and never clears `suspicious`.
+
+When Jev moves a label, `primaryReason` is `jev_decision`. Details:
+[Understanding results](understanding-results.md#with-the-jev-engine).
+
 ## What still happens without Jev
 
 Even with `engine: jev(…)`:

@@ -1,13 +1,33 @@
-import type { EngineName, Kind, ReasonCode, ShadowResult, Verdict } from '@realhuman/schema';
-import { scoreAlgorithmically } from './algorithmic.js';
-import type { ResolvedOptions, Thresholds } from './options.js';
+import type {
+  BotEvidence,
+  EngineName,
+  HumanEvidence,
+  Kind,
+  Label,
+  ReasonCode,
+  ShadowResult,
+  Verdict,
+} from '@realhuman/schema';
+import { inferKind, scoreAlgorithmically } from './algorithmic.js';
+import {
+  botEvidenceLevel,
+  humanEvidenceLevel,
+  labelFor,
+  primaryReason,
+  verdictForLabel,
+} from './levels.js';
+import type { ResolvedOptions } from './options.js';
 import type { Analysis, Scorer, ScorerResult } from './scorer.js';
 
 export interface Decision {
   readonly realHuman: number;
+  readonly label: Label;
   readonly verdict: Verdict;
   readonly kind: Kind;
   readonly confidence: number;
+  readonly botEvidence: BotEvidence;
+  readonly humanEvidence: HumanEvidence;
+  readonly primaryReason: ReasonCode | null;
   readonly reasons: ReasonCode[];
   readonly engine: EngineName;
   readonly model?: string;
@@ -29,12 +49,6 @@ const GATE_KIND: Partial<Record<ReasonCode, Kind>> = {
   honeypot_trap_followed: 'scraper',
 };
 
-export function verdictFor(realHuman: number, thresholds: Thresholds): Verdict {
-  if (realHuman >= thresholds.human) return 'human';
-  if (realHuman <= thresholds.bot) return 'bot';
-  return 'uncertain';
-}
-
 function unique(codes: readonly ReasonCode[]): ReasonCode[] {
   return [...new Set(codes)];
 }
@@ -50,9 +64,13 @@ function gateDecision(analysis: Analysis): Decision {
   }
   return {
     realHuman: GATE_SCORE,
+    label: 'bot',
     verdict: 'bot',
     kind,
     confidence: 0.95,
+    botEvidence: 'conclusive',
+    humanEvidence: humanEvidenceLevel(analysis),
+    primaryReason: analysis.gates[0] ?? null,
     reasons: unique([
       ...analysis.gates,
       ...analysis.evidence.map((e) => e.code),
@@ -121,6 +139,11 @@ async function runWithDeadline(
   }
 }
 
+/**
+ * Turns a scorer's result into a decision. The label always starts from the evidence levels.
+ * A model (Jev) can then move an open case: a probability at or below `thresholds.bot` makes it
+ * `bot`, and one at or above `thresholds.human` turns `unverified` into `human`.
+ */
 function fromResult(
   result: ScorerResult,
   engine: EngineName,
@@ -128,11 +151,31 @@ function fromResult(
   options: ResolvedOptions,
 ): Decision {
   const verified = analysis.server.verifiedAgent !== null;
+  const botEvidence = botEvidenceLevel(analysis);
+  const humanEvidence = humanEvidenceLevel(analysis);
+  let label = labelFor(botEvidence, humanEvidence, verified);
+  let primary = primaryReason(analysis, label);
+
+  const byModel = engine === 'jev';
+  if (byModel && label !== 'bot' && label !== 'verified_agent') {
+    if (result.realHuman <= options.thresholds.bot) {
+      label = 'bot';
+      primary = 'jev_decision';
+    } else if (result.realHuman >= options.thresholds.human && label === 'unverified') {
+      label = 'human';
+      primary = 'jev_decision';
+    }
+  }
+
   return {
     realHuman: result.realHuman,
-    verdict: verified ? 'verified_agent' : verdictFor(result.realHuman, options.thresholds),
-    kind: verified ? 'verified_agent' : result.kind,
+    label,
+    verdict: verdictForLabel(label),
+    kind: verified ? 'verified_agent' : byModel ? result.kind : inferKind(analysis, label),
     confidence: result.confidence,
+    botEvidence,
+    humanEvidence,
+    primaryReason: primary,
     reasons: unique([
       ...result.reasons,
       ...(verified ? (['verified_agent_signature'] as const) : []),
@@ -154,18 +197,13 @@ export async function decideWith(
 
   // Verified agents are labelled by their signature; no need to spend a model call on them.
   if (scorer.name === 'algorithmic' || analysis.server.verifiedAgent !== null) {
-    return fromResult(
-      scoreAlgorithmically(analysis, options.thresholds),
-      'algorithmic',
-      analysis,
-      options,
-    );
+    return fromResult(scoreAlgorithmically(analysis), 'algorithmic', analysis, options);
   }
 
   const result = await runWithDeadline(scorer, analysis, options);
   if (result) return fromResult(result, scorer.name, analysis, options);
 
-  const fallback = scoreAlgorithmically(analysis, options.thresholds);
+  const fallback = scoreAlgorithmically(analysis);
   return fromResult(
     { ...fallback, reasons: [...fallback.reasons, 'jev_unavailable'] },
     'algorithmic-fallback',
@@ -178,6 +216,7 @@ export function toShadow(decision: Decision): ShadowResult {
   return {
     engine: decision.engine,
     realHuman: decision.realHuman,
+    label: decision.label,
     verdict: decision.verdict,
     reasons: decision.reasons,
   };

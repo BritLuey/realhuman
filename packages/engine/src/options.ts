@@ -100,7 +100,12 @@ export interface ResolvedOptions {
   readonly now: () => number;
 }
 
-export const DEFAULT_CLIENT_FIELDS: readonly ClientField[] = ['realHuman', 'verdict', 'confidence'];
+export const DEFAULT_CLIENT_FIELDS: readonly ClientField[] = [
+  'realHuman',
+  'label',
+  'verdict',
+  'confidence',
+];
 
 export function defaultEnv(name: string): string | undefined {
   const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;

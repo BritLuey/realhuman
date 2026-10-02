@@ -7,7 +7,7 @@ interface PostHog {
 }
 
 /**
- * PostHog: `posthog.capture('bot_verdict', { real_human, verdict, rh_sid })` and registers
+ * PostHog: `posthog.capture('bot_verdict', { real_human, rh_label, verdict, rh_sid })` and registers
  * `real_human` as a super property.
  */
 export function posthog(): Integration {
@@ -20,8 +20,13 @@ export function posthog(): Integration {
           return typeof ph?.capture === 'function' && ph;
         },
         (ph) => {
-          ph.register({ real_human: r.realHuman });
-          ph.capture('bot_verdict', { real_human: r.realHuman, verdict: r.verdict, rh_sid: r.sid });
+          ph.register({ real_human: r.realHuman, rh_label: r.label });
+          ph.capture('bot_verdict', {
+            real_human: r.realHuman,
+            rh_label: r.label,
+            verdict: r.verdict,
+            rh_sid: r.sid,
+          });
         },
       );
     },

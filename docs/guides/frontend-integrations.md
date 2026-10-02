@@ -27,12 +27,12 @@ init({ integrations: [newRelic(), datadogRum()] });
 
 | Integration | Import | What it does |
 |---|---|---|
-| **New Relic Browser** | `integrations/new-relic` → `newRelic()` | Sets custom attributes `realHuman`, `realHumanVerdict`, `realHumanSid` (persisted for the rest of the page view) and records a `bot_verdict` page action |
-| **Datadog RUM** | `integrations/datadog-rum` → `datadogRum()` | Sets global context `realhuman.score`, `realhuman.verdict`, `realhuman.sid` and adds a `bot_verdict` action |
-| **Google Analytics 4** | `integrations/ga4` → `ga4()` | Sends a `bot_verdict` event with `real_human`, `verdict` and `rh_sid` parameters |
-| **Google Tag Manager** | `integrations/data-layer` → `dataLayer()` | Pushes `{ event: 'realhuman_result', realHuman, verdict, sid }` to `window.dataLayer` |
+| **New Relic Browser** | `integrations/new-relic` → `newRelic()` | Sets custom attributes `realHuman`, `realHumanLabel`, `realHumanVerdict`, `realHumanSid` (persisted for the rest of the page view) and records a `bot_verdict` page action |
+| **Datadog RUM** | `integrations/datadog-rum` → `datadogRum()` | Sets global context `realhuman.score`, `realhuman.label`, `realhuman.verdict`, `realhuman.sid` and adds a `bot_verdict` action |
+| **Google Analytics 4** | `integrations/ga4` → `ga4()` | Sends a `bot_verdict` event with `real_human`, `rh_label`, `verdict` and `rh_sid` parameters |
+| **Google Tag Manager** | `integrations/data-layer` → `dataLayer()` | Pushes `{ event: 'realhuman_result', realHuman, label, verdict, sid }` to `window.dataLayer` |
 | **Segment** | `integrations/segment` → `segment()` | `analytics.track('Bot Verdict', …)` |
-| **PostHog** | `integrations/posthog` → `posthog()` | `posthog.capture('bot_verdict', …)` and registers `real_human` as a super property |
+| **PostHog** | `integrations/posthog` → `posthog()` | `posthog.capture('bot_verdict', …)` and registers `real_human` and `rh_label` as super properties |
 
 Each integration waits for its tool to load and does nothing if the tool isn't on the page.
 
@@ -45,14 +45,14 @@ Each integration waits for its tool to load and does nothing if the tool isn't o
 
 Register the event parameters as custom dimensions so they show up in reports: in GA4, go to
 **Admin → Custom definitions → Create custom dimension** and add `real_human` (metric or dimension),
-`verdict` and `rh_sid` (event scope).
+`rh_label`, `verdict` and `rh_sid` (event scope).
 
 ### New Relic example query (NRQL)
 
 ```sql
 SELECT count(*) FROM PageAction
 WHERE actionName = 'bot_verdict'
-FACET realHumanVerdict SINCE 1 day ago
+FACET realHumanLabel SINCE 1 day ago
 ```
 
 ## Your own integration
@@ -68,7 +68,7 @@ rh.on('result', (r) => { /* … */ });
 
 // 3. A DOM event, for scripts that don't import the SDK (tag managers, third-party code)
 window.addEventListener('realhuman:result', (e) => {
-  const r = (e as CustomEvent).detail; // { v, sid, seq, realHuman, verdict, confidence }
+  const r = (e as CustomEvent).detail; // { v, sid, seq, realHuman, label, verdict, confidence }
 });
 ```
 

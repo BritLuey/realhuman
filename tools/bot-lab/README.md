@@ -1,7 +1,7 @@
 # realHuman bot lab
 
 Runs automation techniques against a realHuman demo and reports how each is scored. Every session is labelled
-(`label=bot`, `scenario`, `run`), so the results feed straight into the [evaluation report](../eval).
+(`truth=bot`, `scenario`, `run`), so the results feed straight into the [evaluation report](../eval).
 
 ```bash
 pnpm install

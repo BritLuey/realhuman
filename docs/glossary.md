@@ -15,6 +15,12 @@ to reach [Jev](#jev).
 Any automated program that loads web pages: scrapers, crawlers, monitors, test scripts, fraud tools and
 AI agents.
 
+### Bot evidence
+How much evidence of automation a session showed: `none`, `weak`, `moderate`, `strong` or `conclusive`. Strong
+or conclusive makes the label `bot`; moderate makes it `suspicious`. See
+[Understanding results](guides/understanding-results.md).
+
+
 ### CDN (Content Delivery Network)
 A network of servers in front of your site that handles visitors' connections, such as Vercel's edge network or
 AWS CloudFront. It can see details of the connection that your JavaScript can't.
@@ -70,6 +76,11 @@ nonces with HMAC-SHA-256.
 ### Honeypot
 A trap that people can't see but bots stumble into, such as a hidden form field. See [Honeypots](guides/honeypots.md).
 
+### Human evidence
+How much evidence of a real person a session showed: `none`, `some` or `strong`, from natural mouse movement,
+typing, touch and scrolling.
+
+
 ### isTrusted
 A property on every browser event. It's `true` when the event came from real hardware input and `false`
 when a script created it.
@@ -87,6 +98,12 @@ probabilities, quickly and cheaply. realHuman can use it as its engine. See [Jev
 ### Kind
 A finer description of what's driving a session: `human`, `privacy_browser`, `automation`, `scraper`,
 `ai_agent`, `verified_agent`, `no_js` or `unknown`.
+
+### Label
+The field to filter analytics by: `human`, `unverified`, `suspicious`, `bot` or `verified_agent`. Decided from
+the [bot evidence](#bot-evidence) and [human evidence](#human-evidence) levels. See
+[Understanding results](guides/understanding-results.md).
+
 
 ### Nonce
 A single-session token. realHuman's nonces are signed by your server and tied to one visitor's connection,
@@ -109,12 +126,18 @@ The server behind your CDN that actually handles the request, such as your app o
 A browser that deliberately hides or randomises details to resist tracking, such as Brave, Tor Browser or
 Firefox with resistFingerprinting. realHuman recognises these so their users aren't mistaken for bots.
 
+### Primary reason
+The single reason code that best explains a session's label, such as `pointer_natural` ("Natural mouse
+movement"). Handy for dashboards.
+
+
 ### Reason code
 A short label in a decision record explaining part of a decision, such as `pointer_natural`.
 See [Reason codes](reference/reason-codes.md).
 
 ### realHuman score
-A number from 0 (almost certainly a bot) to 1 (almost certainly a human).
+A number from 0 to 1 for ranking sessions: higher means more human-like evidence. It is **not** a probability.
+Filter on the [label](#label) instead.
 
 ### seq
 The update number within one page load: `0` for the first, then `1`, `2`… The highest is the latest.
@@ -141,7 +164,8 @@ The encryption behind HTTPS. Its handshake is where the [JA4](#ja4) fingerprint 
 "Insert, or update if it already exists": how you store decision records so each `sid` keeps only its latest update.
 
 ### Verdict
-The headline outcome: `human`, `bot`, `verified_agent` or `uncertain`.
+A coarser version of the [label](#label), kept for compatibility: `human`, `bot`, `verified_agent` or
+`uncertain` (which covers both `unverified` and `suspicious`).
 
 ### Verified agent
 An AI agent or crawler that proves who it is by cryptographically signing its requests with

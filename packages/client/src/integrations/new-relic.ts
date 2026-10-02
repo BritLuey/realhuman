@@ -21,10 +21,12 @@ export function newRelic(): Integration {
         },
         (nr) => {
           nr.setCustomAttribute('realHuman', r.realHuman ?? null, true);
+          nr.setCustomAttribute('realHumanLabel', r.label ?? null, true);
           nr.setCustomAttribute('realHumanVerdict', r.verdict ?? null, true);
           nr.setCustomAttribute('realHumanSid', r.sid, true);
           nr.addPageAction('bot_verdict', {
             realHuman: r.realHuman,
+            label: r.label,
             verdict: r.verdict,
             sid: r.sid,
           });

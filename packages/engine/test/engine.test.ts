@@ -10,6 +10,7 @@ import {
   CHROME_JA4,
   harness,
   humanSignals,
+  idleSignals,
   SECRET,
   silentLogger,
 } from './helpers.js';
@@ -248,7 +249,9 @@ describe('pluggable scorers', () => {
     expect(h.records[0]).toMatchObject({
       engine: 'jev',
       realHuman: 0.42,
-      verdict: 'uncertain',
+      // A model answer between the thresholds doesn't override strong human evidence.
+      label: 'human',
+      verdict: 'human',
       model: 'm',
       provider: 'p',
       questionsVersion: '1',
@@ -277,8 +280,34 @@ describe('pluggable scorers', () => {
     expect(h.records[0]?.shadow).toMatchObject({
       engine: 'jev',
       realHuman: 0.42,
-      verdict: 'uncertain',
+      label: 'human',
+      verdict: 'human',
     });
+  });
+
+  it('lets a model move open cases: low probability to bot, high to human', async () => {
+    const answer = (realHuman: number): Scorer => ({
+      name: 'jev',
+      score: async () => ({
+        realHuman,
+        confidence: 0.9,
+        kind: 'unknown',
+        reasons: ['jev_decision'],
+      }),
+    });
+    const low = harness({ engine: answer(0.1) });
+    const a = await low.init();
+    await low.score({ sid: a.sid, nonce: a.nonce });
+    expect(low.records[0]).toMatchObject({
+      label: 'bot',
+      verdict: 'bot',
+      primaryReason: 'jev_decision',
+    });
+
+    const high = harness({ engine: answer(0.95) });
+    const b = await high.init();
+    await high.score({ sid: b.sid, nonce: b.nonce, signals: idleSignals() });
+    expect(high.records[0]).toMatchObject({ label: 'human', primaryReason: 'jev_decision' });
   });
 });
 
@@ -405,14 +434,23 @@ describe('rescore', () => {
     const h = harness();
     const { sid, nonce } = await h.init();
     await h.score({ sid, nonce });
-    const input = `${JSON.stringify(h.records[0])}\nnot json\n`;
-    const result = spawnSync(process.execPath, [bin, '--human', '0.99'], {
-      input,
-      encoding: 'utf8',
-    });
+    // A record from an older engine, before labels existed.
+    const {
+      label: _l,
+      botEvidence: _b,
+      humanEvidence: _h,
+      primaryReason: _p,
+      ...old
+    } = h.records[0] ?? {};
+    const input = `${JSON.stringify(old)}\nnot json\n`;
+    const result = spawnSync(process.execPath, [bin], { input, encoding: 'utf8' });
     expect(result.status).toBe(0);
     const out = JSON.parse(result.stdout.trim());
-    expect(out.verdict).toBe('uncertain'); // 0.99 threshold
+    expect(out).toMatchObject({
+      label: 'human',
+      humanEvidence: 'strong',
+      primaryReason: 'pointer_natural',
+    });
     expect(result.stderr).toContain('1 re-scored, 1 skipped');
   });
 });

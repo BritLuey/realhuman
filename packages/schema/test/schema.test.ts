@@ -109,6 +109,22 @@ describe('parseDecisionRecord', () => {
     expect(parseDecisionRecord(record).success).toBe(true);
   });
 
+  it('accepts records from older engines without labels', () => {
+    const {
+      label: _l,
+      botEvidence: _b,
+      humanEvidence: _h,
+      primaryReason: _p,
+      ...old
+    } = validRecord();
+    expect(parseDecisionRecord(old).success).toBe(true);
+  });
+
+  it('rejects unknown labels and evidence levels', () => {
+    expect(parseDecisionRecord({ ...validRecord(), label: 'maybe' }).success).toBe(false);
+    expect(parseDecisionRecord({ ...validRecord(), botEvidence: 'huge' }).success).toBe(false);
+  });
+
   it('rejects unknown reason codes', () => {
     expect(parseDecisionRecord({ ...validRecord(), reasons: ['made_up'] }).success).toBe(false);
   });
@@ -117,6 +133,13 @@ describe('parseDecisionRecord', () => {
 describe('reason codes', () => {
   it('are all lower_snake_case', () => {
     for (const code of REASON_CODES) expect(code).toMatch(/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/);
+  });
+
+  it('all have a short title', () => {
+    for (const code of REASON_CODES) {
+      expect(REASONS[code].title.length).toBeGreaterThan(3);
+      expect(REASONS[code].title.length).toBeLessThan(40);
+    }
   });
 
   it('all have a description', () => {

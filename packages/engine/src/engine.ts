@@ -3,6 +3,7 @@ import {
   type Context,
   type DecisionRecord,
   type Kind,
+  type Label,
   parsePayload,
   type ReasonCode,
   SCHEMA_VERSION,
@@ -39,8 +40,10 @@ export interface EdgeTag {
   readonly ts: string;
   readonly path: string;
   readonly realHuman: number;
+  readonly label: Label;
   readonly verdict: Verdict;
   readonly kind: Kind;
+  readonly primaryReason: ReasonCode | null;
   readonly reasons: readonly ReasonCode[];
   readonly server: ServerFacts;
 }
@@ -145,6 +148,10 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
       verdict: decision.verdict,
       kind: decision.kind,
       confidence: decision.confidence,
+      label: decision.label,
+      botEvidence: decision.botEvidence,
+      humanEvidence: decision.humanEvidence,
+      primaryReason: decision.primaryReason,
       reasons: decision.reasons,
       engine: decision.engine,
       engineVersion: VERSION,
@@ -163,7 +170,7 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
   function clientResult(
     sid: string,
     seq: number,
-    decision: Pick<Decision, 'realHuman' | 'verdict' | 'kind' | 'confidence'>,
+    decision: Pick<Decision, 'realHuman' | 'label' | 'verdict' | 'kind' | 'confidence'>,
   ): ClientResult {
     const result: { -readonly [K in keyof ClientResult]: ClientResult[K] } = {
       v: SCHEMA_VERSION,
@@ -172,6 +179,7 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
     };
     for (const field of options.clientFields) {
       if (field === 'realHuman') result.realHuman = decision.realHuman;
+      if (field === 'label') result.label = decision.label;
       if (field === 'verdict') result.verdict = decision.verdict;
       if (field === 'kind') result.kind = decision.kind;
       if (field === 'confidence') result.confidence = decision.confidence;
@@ -260,6 +268,7 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
             200,
             clientResult(payload.sid, payload.seq, {
               realHuman: 0.5,
+              label: 'unverified',
               verdict: 'uncertain',
               kind: 'unknown',
               confidence: 0,
@@ -408,8 +417,10 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
         ts: new Date(now).toISOString(),
         path: new URL(request.url).pathname,
         realHuman: decision.realHuman,
+        label: decision.label,
         verdict: decision.verdict,
         kind: decision.kind,
+        primaryReason: decision.primaryReason,
         reasons: decision.reasons,
         server,
       };

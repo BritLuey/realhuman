@@ -14,7 +14,7 @@ You choose with a single server-side setting, `deliver`.
 ```ts
 createHandlers({
   deliver: 'both',
-  clientFields: ['realHuman', 'verdict', 'confidence'], // what the browser may see
+  clientFields: ['realHuman', 'label', 'verdict', 'confidence'], // what the browser may see
   onDecision: async (record) => { /* your pipeline */ },
 });
 ```
@@ -29,12 +29,12 @@ exposed. That means:
 
 ## What the browser can receive
 
-Only the fields you list in `clientFields` (default: `realHuman`, `verdict`, `confidence`), plus `sid` and
+Only the fields you list in `clientFields` (default: `realHuman`, `label`, `verdict`, `confidence`), plus `sid` and
 `seq`. **Reason codes, signals and network facts are never sent to the browser**, whatever you configure,
 because they would show bots exactly what to fix.
 
 ```json
-{ "v": 1, "sid": "k3J9x0aQ2mW8pL5rT7yB", "seq": 0, "realHuman": 0.91, "verdict": "human", "confidence": 0.64 }
+{ "v": 1, "sid": "k3J9x0aQ2mW8pL5rT7yB", "seq": 0, "realHuman": 0.91, "label": "human", "verdict": "human", "confidence": 0.64 }
 ```
 
 ## Updates, `seq` and the "final" answer

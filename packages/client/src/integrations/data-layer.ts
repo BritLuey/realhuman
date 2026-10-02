@@ -1,7 +1,7 @@
 import type { Integration } from '../types.js';
 
 /**
- * Google Tag Manager: pushes `{ event: 'realhuman_result', realHuman, verdict, sid }` to
+ * Google Tag Manager: pushes `{ event: 'realhuman_result', realHuman, label, verdict, sid }` to
  * `window.dataLayer`, creating it if needed (GTM reads queued entries when it loads).
  */
 export function dataLayer(): Integration {
@@ -14,6 +14,7 @@ export function dataLayer(): Integration {
         w.dataLayer.push({
           event: 'realhuman_result',
           realHuman: r.realHuman,
+          label: r.label,
           verdict: r.verdict,
           sid: r.sid,
         });

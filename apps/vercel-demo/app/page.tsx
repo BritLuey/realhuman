@@ -4,7 +4,7 @@ import { useRealHuman } from '@realhuman/react';
 import { REASONS, type ReasonCode } from '@realhuman/schema';
 import type { DecisionRecord } from '@realhuman/vercel';
 import { type FormEvent, useEffect, useState } from 'react';
-import { type Labels, readLabels } from './labels';
+import { readMarkers, type TestMarkers } from './labels';
 
 type Why =
   | { state: 'idle' | 'loading' | 'unavailable' }
@@ -12,11 +12,11 @@ type Why =
 
 export default function Page() {
   const { instance, result } = useRealHuman();
-  const [labels, setLabels] = useState<Labels>({});
+  const [markers, setMarkers] = useState<TestMarkers>({});
   const [why, setWhy] = useState<Why>({ state: 'idle' });
   const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => setLabels(readLabels(window.location.search)), []);
+  useEffect(() => setMarkers(readMarkers(window.location.search)), []);
 
   // Exposed for debugging and for the bot lab, which drives this page in test runs.
   useEffect(() => {
@@ -57,35 +57,39 @@ export default function Page() {
       <header>
         <h1>realHuman demo</h1>
         <p className="lead">
-          This page scores your visit from 0 (bot) to 1 (human) using how you interact and how your
-          browser connects. It never blocks anyone, and it stores nothing on your device.
+          This page labels your visit as human, unverified, suspicious or bot, using how you
+          interact and how your browser connects. It never blocks anyone, and it stores nothing on
+          your device.
         </p>
       </header>
 
-      {labels.label === 'human' && (
+      {markers.truth === 'human' && (
         <section className="callout" aria-label="Test instructions">
           <strong>Thanks for helping test realHuman.</strong> Please use this page the way you
           normally would for about 30 seconds: read it, scroll, and fill in the form below. Then you
           can close the tab. Nothing you type is recorded, only timing patterns.
         </section>
       )}
-      {labels.label === 'bot' && (
+      {markers.truth === 'bot' && (
         <section className="callout muted" aria-label="Test run">
-          Automated test run{labels.scenario ? `: ${labels.scenario}` : ''}.
+          Automated test run{markers.scenario ? `: ${markers.scenario}` : ''}.
         </section>
       )}
 
       <section aria-live="polite" className="score-card">
-        <div className="muted">Your score</div>
+        <div className="muted">Your result</div>
         <div className="score-row">
-          <span className="score">
-            {result?.realHuman !== undefined ? result.realHuman.toFixed(2) : '…'}
+          <span className={`score label ${result?.label ?? ''}`}>
+            {result?.label ? LABEL_NAME[result.label] : '…'}
           </span>
-          <span className={`pill ${result?.verdict ?? ''}`}>{result?.verdict ?? 'measuring'}</span>
+          {result?.realHuman !== undefined && (
+            <span className="pill">score {result.realHuman.toFixed(2)}</span>
+          )}
           {result?.confidence !== undefined && (
             <span className="pill">confidence {result.confidence.toFixed(2)}</span>
           )}
         </div>
+        {result?.label && <p className="small">{LABEL_TEXT[result.label]}</p>}
         <div className="muted small">
           {result
             ? `update #${result.seq} · session ${result.sid.slice(0, 8)}…`
@@ -142,12 +146,21 @@ export default function Page() {
   );
 }
 
-const VERDICT_TEXT: Record<string, string> = {
-  human: 'Confidently human.',
-  bot: 'Looks automated.',
-  uncertain:
-    'Not enough evidence either way yet. Keep using the page normally (move, scroll, type) and score again.',
-  verified_agent: 'A self-identifying AI agent or crawler.',
+const LABEL_NAME: Record<string, string> = {
+  human: 'Human',
+  unverified: 'Unverified',
+  suspicious: 'Suspicious',
+  bot: 'Bot',
+  verified_agent: 'Verified agent',
+};
+
+const LABEL_TEXT: Record<string, string> = {
+  human: 'Real interaction was seen, with no meaningful sign of automation.',
+  unverified:
+    'Nothing suspicious, but no interaction to confirm a person yet. Move the mouse, scroll or type, then score again.',
+  suspicious: 'Some signs of automation, but nothing conclusive.',
+  bot: 'Strong or conclusive signs of automation.',
+  verified_agent: 'An AI agent or crawler that proved its identity.',
 };
 
 function Reasons({ record }: { record: DecisionRecord }) {
@@ -160,10 +173,39 @@ function Reasons({ record }: { record: DecisionRecord }) {
   };
   return (
     <>
-      <p>
-        <strong>{record.realHuman.toFixed(2)}</strong> ·{' '}
-        {VERDICT_TEXT[record.verdict] ?? record.verdict}
-      </p>
+      <table className="levels">
+        <tbody>
+          <tr>
+            <th>Label</th>
+            <td>
+              <strong>{record.label ? LABEL_NAME[record.label] : record.verdict}</strong>
+            </td>
+          </tr>
+          <tr>
+            <th>Bot evidence</th>
+            <td>{record.botEvidence ?? '–'}</td>
+          </tr>
+          <tr>
+            <th>Human evidence</th>
+            <td>{record.humanEvidence ?? '–'}</td>
+          </tr>
+          <tr>
+            <th>Main reason</th>
+            <td>
+              {record.primaryReason
+                ? REASONS[record.primaryReason as ReasonCode]?.title
+                : 'Nothing notable either way'}
+            </td>
+          </tr>
+          <tr>
+            <th>Score</th>
+            <td>
+              {record.realHuman.toFixed(2)}{' '}
+              <span className="muted small">(for ranking, not a probability)</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
       <p className="small muted">
         Update #{record.seq} · engine <code>{record.engine}</code> · TLS fingerprint{' '}
         <code>{record.server.ja4 ?? 'not available'}</code>
@@ -176,7 +218,9 @@ function Reasons({ record }: { record: DecisionRecord }) {
             const info = REASONS[code as ReasonCode];
             return (
               <li key={code} className={info?.lean ?? 'neutral'}>
-                <code>{code}</code> {info?.description}
+                <strong>{info?.title ?? code}</strong> <code>{code}</code>
+                <br />
+                <span className="muted small">{info?.description}</span>
               </li>
             );
           })}

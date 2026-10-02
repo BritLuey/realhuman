@@ -7,7 +7,7 @@ interface DatadogRum {
 }
 
 /**
- * Datadog RUM: sets the global context property `realhuman` to `{ score, verdict, sid }` and adds
+ * Datadog RUM: sets the global context property `realhuman` to `{ score, label, verdict, sid }` and adds
  * a `bot_verdict` action.
  */
 export function datadogRum(): Integration {
@@ -22,10 +22,16 @@ export function datadogRum(): Integration {
         (rum) => {
           rum.setGlobalContextProperty?.('realhuman', {
             score: r.realHuman,
+            label: r.label,
             verdict: r.verdict,
             sid: r.sid,
           });
-          rum.addAction('bot_verdict', { realHuman: r.realHuman, verdict: r.verdict, sid: r.sid });
+          rum.addAction('bot_verdict', {
+            realHuman: r.realHuman,
+            label: r.label,
+            verdict: r.verdict,
+            sid: r.sid,
+          });
         },
       );
     },

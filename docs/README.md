@@ -12,6 +12,7 @@ Want to see it working first? Run the [demo site](../apps/demo) locally; it take
 | 1 | [What is realHuman?](getting-started/what-is-realhuman.md) | What problem it solves, what it doesn't do, key terms |
 | 2 | [How it works](getting-started/how-it-works.md) | The journey from page load to decision record, step by step |
 | 3 | Pick one quickstart: [Vercel](getting-started/quickstart-vercel.md) · [AWS CloudFront](getting-started/quickstart-cloudfront.md) · [Node.js](getting-started/quickstart-node.md) | A working setup |
+| 4 | [Understanding results](guides/understanding-results.md) | What `human`, `unverified`, `suspicious` and `bot` mean, and exactly how each is decided |
 
 ## Guides: doing specific things
 

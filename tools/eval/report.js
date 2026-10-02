@@ -84,7 +84,7 @@ if (result.scenarios.length) {
   console.log('\nBy scenario:');
   for (const s of result.scenarios) {
     console.log(
-      `  ${s.scenario.padEnd(26)} ${String(s.verdicts.bot).padStart(3)}/${s.n} caught · ${s.verdicts.uncertain} uncertain · ${s.verdicts.human} passed as human`,
+      `  ${s.scenario.padEnd(26)} ${String(s.labels.bot).padStart(3)}/${s.n} bot · ${s.labels.suspicious} suspicious · ${s.labels.unverified} unverified · ${s.labels.human} human`,
     );
   }
 }

@@ -90,11 +90,16 @@ forge. This only holds if your server can't be reached except through the CDN; s
 The engine works in four stages:
 
 1. **Validate.** Is the payload well-formed? Is the nonce genuine, unexpired and presented by the same client it was issued to?
-2. **Gates.** Some evidence is conclusive on its own: a filled honeypot, automation framework globals, or a non-browser TLS fingerprint claiming to be a browser. Any of these ends the analysis and gives a score near `0`.
+2. **Gates.** Some evidence is conclusive on its own: a filled honeypot, automation framework globals, or a non-browser TLS fingerprint claiming to be a browser. Any of these ends the analysis: the label is `bot`, with conclusive bot evidence.
 3. **Verified agents.** An AI agent with a valid Web Bot Auth signature, from an agent you have chosen to trust (`webBotAuth.agents`), gets the verdict `verified_agent`, so you can decide separately whether to count it.
-4. **Scoring.** Everything else is weighed together by your chosen engine:
-   - **`algorithmic`** (default): each piece of evidence nudges the score up or down. The nudges are capped per category so one odd signal, such as an unusual mouse, can't sink a real person.
-   - **`jev`**: the evidence is sent to [Jev](../guides/jev-engine.md), which returns a probability. The gates still run first, and if Jev is slow or unavailable, the algorithmic engine answers instead.
+4. **Evidence levels and label.** Every other piece of evidence has a weight. Bot-leaning weights add up to a
+   **bot evidence** level (none, weak, moderate, strong) and human-leaning weights to a **human evidence** level
+   (none, some, strong). Strong bot evidence makes the label `bot` and moderate makes it `suspicious`; otherwise
+   human evidence makes it `human`, and no evidence leaves it `unverified`. The same weights also produce a
+   score for ranking. See [Understanding results](../guides/understanding-results.md).
+   - With **`jev`**, the evidence is also sent to [Jev](../guides/jev-engine.md), whose probability can settle
+     cases the evidence left open. The gates still run first, and if Jev is slow or unavailable, the algorithmic
+     engine answers instead.
 
 Privacy-hardened browsers (Brave, Tor, Firefox with fingerprinting resistance) deliberately report
 inconsistent details. realHuman recognises them and switches off the penalties that would otherwise
@@ -105,8 +110,8 @@ mark their users as bots.
 | Delivery mode | Your backend gets | The browser gets |
 |---|---|---|
 | `server` (default) | Every decision record via `onDecision` | Nothing (HTTP 204) |
-| `client` | Nothing | `{ sid, seq, realHuman, verdict, confidence }` |
-| `both` | Every decision record | `{ sid, seq, realHuman, verdict, confidence }` |
+| `client` | Nothing | `{ sid, seq, realHuman, label, verdict, confidence }` |
+| `both` | Every decision record | `{ sid, seq, realHuman, label, verdict, confidence }` |
 
 Each update for the same `sid` replaces the previous one, and **the highest `seq` is the final answer**.
 See [Delivery modes](../guides/delivery-modes.md) and [Ingesting decisions](../guides/ingesting-decisions.md).

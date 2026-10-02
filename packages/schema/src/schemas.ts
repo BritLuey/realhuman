@@ -1,9 +1,12 @@
 import * as v from 'valibot';
 import {
   AUTOMATION_MARKERS,
+  BOT_EVIDENCE_LEVELS,
   ENGINES,
   HEADLESS_MARKERS,
+  HUMAN_EVIDENCE_LEVELS,
   KINDS,
+  LABELS,
   PRIVACY_BROWSERS,
   VERDICTS,
 } from './enums.js';
@@ -179,6 +182,7 @@ export const ClientResultSchema = v.object({
   sid: SessionIdSchema,
   seq: v.pipe(v.number(), v.integer(), v.minValue(0)),
   realHuman: v.optional(ratio),
+  label: v.optional(v.picklist(LABELS)),
   verdict: v.optional(v.picklist(VERDICTS)),
   kind: v.optional(v.picklist(KINDS)),
   confidence: v.optional(ratio),
@@ -208,6 +212,7 @@ export const ServerFactsSchema = v.object({
 export const ShadowResultSchema = v.object({
   engine: v.picklist(ENGINES),
   realHuman: ratio,
+  label: v.optional(v.picklist(LABELS)),
   verdict: v.picklist(VERDICTS),
   reasons: v.array(v.picklist(REASON_CODES)),
 });
@@ -223,6 +228,14 @@ export const DecisionRecordSchema = v.object({
   verdict: v.picklist(VERDICTS),
   kind: v.picklist(KINDS),
   confidence: ratio,
+  /** The label to filter analytics by. Optional only so records from older engines still parse. */
+  label: v.optional(v.picklist(LABELS)),
+  /** How much evidence of automation was seen. */
+  botEvidence: v.optional(v.picklist(BOT_EVIDENCE_LEVELS)),
+  /** How much evidence of a real person was seen. */
+  humanEvidence: v.optional(v.picklist(HUMAN_EVIDENCE_LEVELS)),
+  /** The single reason that best explains the label, or null when nothing notable was seen. */
+  primaryReason: v.optional(v.nullable(v.picklist(REASON_CODES))),
   reasons: v.array(v.picklist(REASON_CODES)),
   engine: v.picklist(ENGINES),
   engineVersion: v.pipe(v.string(), v.maxLength(32)),

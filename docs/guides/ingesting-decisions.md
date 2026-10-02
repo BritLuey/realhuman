@@ -50,6 +50,10 @@ CREATE TABLE realhuman_decisions (
   sid           text PRIMARY KEY,
   seq           integer     NOT NULL,
   ts            timestamptz NOT NULL,
+  label         text,                 -- human | unverified | suspicious | bot | verified_agent
+  bot_evidence  text,
+  human_evidence text,
+  primary_reason text,
   real_human    real        NOT NULL,
   verdict       text        NOT NULL,
   kind          text        NOT NULL,
@@ -66,10 +70,13 @@ they arrive out of order:
 
 ```sql
 INSERT INTO realhuman_decisions
-  (sid, seq, ts, real_human, verdict, kind, confidence, engine, reasons, context, record)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+  (sid, seq, ts, label, bot_evidence, human_evidence, primary_reason,
+   real_human, verdict, kind, confidence, engine, reasons, context, record)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 ON CONFLICT (sid) DO UPDATE SET
-  seq = EXCLUDED.seq, ts = EXCLUDED.ts, real_human = EXCLUDED.real_human,
+  seq = EXCLUDED.seq, ts = EXCLUDED.ts, label = EXCLUDED.label,
+  bot_evidence = EXCLUDED.bot_evidence, human_evidence = EXCLUDED.human_evidence,
+  primary_reason = EXCLUDED.primary_reason, real_human = EXCLUDED.real_human,
   verdict = EXCLUDED.verdict, kind = EXCLUDED.kind, confidence = EXCLUDED.confidence,
   engine = EXCLUDED.engine, reasons = EXCLUDED.reasons, context = EXCLUDED.context,
   record = EXCLUDED.record

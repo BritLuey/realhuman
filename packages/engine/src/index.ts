@@ -1,9 +1,12 @@
 export type {
+  BotEvidence,
   ClientResult,
   Context,
   DecisionRecord,
   DeliveryMode,
+  HumanEvidence,
   Kind,
+  Label,
   Payload,
   ReasonCode,
   ServerFacts,
@@ -19,10 +22,18 @@ export {
   sigmoid,
 } from './algorithmic.js';
 export { type AnalysisInput, analyze, WEIGHTS } from './analysis.js';
-export { type Decision, decideWith, GATE_SCORE, verdictFor } from './decide.js';
+export { type Decision, decideWith, GATE_SCORE } from './decide.js';
 export { createRealHuman, type EdgeTag, type HandleContext, type RealHuman } from './engine.js';
 export { deriveServerFacts, parseBrands, type TrustedFacts, timezonesMatch } from './facts.js';
 export { assessJa4, type Ja4Assessment, type Ja4Lists, type Ja4Parts, parseJa4 } from './ja4.js';
+export {
+  botEvidenceLevel,
+  humanEvidenceLevel,
+  LEVEL_CUTOFFS,
+  labelFor,
+  primaryReason,
+  verdictForLabel,
+} from './levels.js';
 export {
   DEFAULT_CLIENT_FIELDS,
   defaultEnv,

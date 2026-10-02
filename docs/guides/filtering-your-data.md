@@ -2,6 +2,16 @@
 
 This is the payoff: using realHuman decisions to clean up analytics and reports.
 
+**The short version:** filter on `label`. It has five values (`human`, `unverified`, `suspicious`, `bot` and
+`verified_agent`) and two recommended filters:
+
+| Filter | SQL | Use it for |
+|---|---|---|
+| **Standard** | `label <> 'bot'` | Traffic totals and general reporting |
+| **Strict** | `label IN ('human', 'unverified')` | A/B tests, conversion rates, anything a bot would distort |
+
+What each label means, and exactly how it's decided: [Understanding results](understanding-results.md).
+
 ## Step 1: Connect decisions to your analytics data
 
 Your analytics events and realHuman's decision records need a shared key. There are two ways to get one.
@@ -22,59 +32,77 @@ against your analytics export.
 - `context` takes up to 10 keys, each value up to 256 characters.
 - Use a function if the ID isn't known when `init()` runs. It's evaluated when each update is sent.
 
-### Option B: Send realHuman's `sid` to your analytics tool
+### Option B: Send realHuman's `sid` and label to your analytics tool
 
 Use `deliver: 'both'` and a [frontend integration](frontend-integrations.md), which sends a `bot_verdict`
-event containing the `sid`, score and verdict into your analytics tool. You can then join on `sid`, or
-filter inside the analytics tool directly.
+event containing the `sid`, label and score into your analytics tool. You can then join on `sid`, or filter
+inside the analytics tool directly. Remember that browser-side copies can be tampered with; the backend record is
+the source of truth.
 
-## Step 2: Pick a threshold
+## Step 2: Choose a filter
 
-| Threshold | Effect | Good for |
-|---|---|---|
-| `realHuman >= 0.3` | Removes only obvious bots | Traffic totals where you'd rather keep borderline visits |
-| `realHuman >= 0.5` | Balanced | Most reporting |
-| `realHuman >= 0.7` | Keeps only confident humans | Experiments and conversion analysis |
+| Label | Standard filter | Strict filter | Why |
+|---|---|---|---|
+| `human` | keep | keep | Real interaction seen |
+| `unverified` | keep | keep | No evidence either way; almost always a quick real visit |
+| `suspicious` | keep | **remove** | Some signs of automation, not conclusive; real people on remote desktops or kiosks can land here |
+| `bot` | **remove** | **remove** | Strong or conclusive signs of automation |
+| `verified_agent` | your call | your call | Self-identified AI agents and crawlers |
 
-Because the score is stored as a number, you can **change your mind later** without collecting anything new.
+Because the label is stored with every record, you can **switch filters later** without collecting anything
+new. To see what each filter does to *your* traffic, run the [evaluation report](evaluation.md): it measures
+how many bots and how many real people each filter removes.
 
 > [!TIP]
-> Also look at `verdict = 'verified_agent'`. These are AI agents and crawlers that identified themselves
-> cryptographically. Whether they count as "real" traffic is a business decision. For example, an AI agent
-> buying something on a customer's behalf is arguably a real customer.
+> Decide what `verified_agent` means for you. These are AI agents and crawlers that proved who they are. An AI
+> agent buying something on a customer's behalf is arguably a real customer; a search crawler isn't.
 
 ## Step 3: Filter
 
-### Page views from real people (Option A, BigQuery-style SQL)
+These examples use BigQuery-style SQL and assume decision records in a table `realhuman_decisions_raw` (see
+[Ingesting decisions](ingesting-decisions.md)). Start with the latest decision per page load:
 
 ```sql
 WITH latest AS (
   SELECT *
   FROM realhuman_decisions_raw
   QUALIFY ROW_NUMBER() OVER (PARTITION BY sid ORDER BY seq DESC) = 1
-),
-visitor_score AS (
-  -- One visitor (client id) may have many page loads; average their scores.
+)
+```
+
+### Page views from real visitors (Option A)
+
+One visitor (client id) can have many page loads. Give each visitor the most cautious label seen across them:
+
+```sql
+WITH latest AS (…),
+visitor AS (
   SELECT JSON_VALUE(context, '$.gaClientId') AS client_id,
-         AVG(real_human)                     AS real_human
+         CASE
+           WHEN COUNTIF(label = 'bot') > 0        THEN 'bot'
+           WHEN COUNTIF(label = 'suspicious') > 0 THEN 'suspicious'
+           WHEN COUNTIF(label = 'human') > 0      THEN 'human'
+           ELSE 'unverified'
+         END AS label
   FROM latest
   GROUP BY client_id
 )
 SELECT e.*
 FROM analytics_events AS e
-JOIN visitor_score    AS v ON v.client_id = e.client_id
-WHERE v.real_human >= 0.5;
+JOIN visitor AS v ON v.client_id = e.client_id
+WHERE v.label <> 'bot';                       -- standard
+-- WHERE v.label IN ('human', 'unverified');  -- strict
 ```
 
-### Bot share by day (a good health metric)
-
-These queries reuse the `latest` query from the example above.
+### Traffic mix by day (a good health metric)
 
 ```sql
 SELECT DATE(ts) AS day,
-       COUNTIF(verdict = 'bot')            / COUNT(*) AS bot_share,
-       COUNTIF(verdict = 'verified_agent') / COUNT(*) AS agent_share,
-       COUNTIF(verdict = 'uncertain')      / COUNT(*) AS uncertain_share
+       COUNTIF(label = 'human')          / COUNT(*) AS human_share,
+       COUNTIF(label = 'unverified')     / COUNT(*) AS unverified_share,
+       COUNTIF(label = 'suspicious')     / COUNT(*) AS suspicious_share,
+       COUNTIF(label = 'bot')            / COUNT(*) AS bot_share,
+       COUNTIF(label = 'verified_agent') / COUNT(*) AS agent_share
 FROM latest
 GROUP BY day
 ORDER BY day;
@@ -82,15 +110,34 @@ ORDER BY day;
 
 ### Why were sessions flagged?
 
+`primary_reason` gives one reason per session, which is ideal for dashboards:
+
+```sql
+SELECT label, primary_reason, COUNT(*) AS sessions
+FROM latest
+WHERE label IN ('bot', 'suspicious')
+GROUP BY label, primary_reason
+ORDER BY sessions DESC;
+```
+
+To see every piece of evidence, unnest `reasons` instead:
+
 ```sql
 SELECT reason, COUNT(*) AS sessions
 FROM latest, UNNEST(reasons) AS reason
-WHERE verdict = 'bot'
+WHERE label = 'bot'
 GROUP BY reason
 ORDER BY sessions DESC;
 ```
 
-What each reason means: [Reason codes](../reference/reason-codes.md).
+Show reason titles rather than codes on dashboards: `REASONS[code].title` in `@realhuman/schema` (for example
+"Headless browser traits"), or a lookup table built from [Reason codes](../reference/reason-codes.md).
+
+### Records from before labels existed
+
+Records written by older engine versions have no `label`. Either re-score them with
+`npx realhuman-rescore < old.ndjson > new.ndjson`, or treat `verdict` as a fallback: `human` → `human`,
+`bot` → `bot`, `uncertain` → `unverified`.
 
 ## Visits with no decision
 
@@ -100,8 +147,9 @@ leave them out of conversion-rate maths, and to track the size of this group ove
 
 ## Sanity checks before you trust the numbers
 
-1. **Look at `uncertain_share`.** If it's high, most sessions had too little evidence. Make sure the final
-   page-close update is being received, or call `rh.score()` at key moments.
-2. **Look at your own traffic.** Your team's visits should score as human. If they don't, see
-   [Troubleshooting](../operations/troubleshooting.md).
-3. **Run [shadow mode](shadow-mode.md)** before switching engines or thresholds on reports people rely on.
+1. **Look at the `unverified` share.** If it's very high, most visits had too little interaction to confirm.
+   Make sure the page-close update is being received, or call `rh.score()` at key moments such as form submits.
+2. **Look at your own traffic.** Your team's visits should be `human`. If they're `suspicious`, check
+   `primary_reason`, and see [Troubleshooting](../operations/troubleshooting.md).
+3. **Measure before you rely on it.** The [evaluation method](evaluation.md) shows how many bots and how many
+   real people each filter removes, with confidence intervals.

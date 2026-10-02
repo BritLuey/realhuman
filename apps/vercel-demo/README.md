@@ -2,9 +2,9 @@
 
 A Next.js site you can host on Vercel in about ten minutes. It:
 
-- scores every visit and shows visitors their own score and the reasons for it;
+- labels every visit (human, unverified, suspicious or bot) and shows visitors their own label and the reasons for it;
 - runs the exact setup from the [Vercel quickstart](../../docs/getting-started/quickstart-vercel.md), including edge tagging in `proxy.ts`;
-- collects **labelled sessions** (`?label=human`, `?label=bot`) and exports them for the
+- collects **labelled sessions** (`?truth=human`, `?truth=bot`) and exports them for the
   [evaluation tool](../../tools/eval), so you can measure how well realHuman works on real people and real bots.
 
 ## Deploy it
@@ -40,19 +40,19 @@ Without storage the demo still works, but it can't show reason codes on the page
 
 ### 5. Check it works
 
-Open your deployment URL. Within a second you should see a score. Move the mouse, scroll, type in the form and
-press **Score now**. The **Why this score?** panel lists the reason codes, and the TLS fingerprint line should
+Open your deployment URL. Within a second you should see a label (`Unverified` until you interact). Move the mouse, scroll, type in the form and
+press **Score now**. The **Why this score?** panel shows the bot and human evidence levels and the reason codes, and the TLS fingerprint line should
 show a JA4 value (for example `t13d1516h2_…`). That's Vercel's edge at work.
 
-✅ If the score, the reasons and a JA4 value all appear, the deployment is complete.
+✅ If the label, the reasons and a JA4 value all appear, the deployment is complete.
 
 ## Use it to test realHuman
 
 | Link | What it records |
 |---|---|
 | `https://<your-demo>/` | Unlabelled visits |
-| `https://<your-demo>/?label=human&run=pilot-1` | Sessions you know are human. Send this to colleagues, friends or testers |
-| `https://<your-demo>/?label=human&run=pilot-1&participant=p07` | The same, with a participant code so you can follow up |
+| `https://<your-demo>/?truth=human&run=pilot-1` | Sessions you know are human. Send this to colleagues, friends or testers |
+| `https://<your-demo>/?truth=human&run=pilot-1&participant=p07` | The same, with a participant code so you can follow up |
 | bot lab: `pnpm --filter @realhuman/bot-lab lab -- --target=https://<your-demo> --run=pilot-1 --repeat=10` | Labelled bot sessions from 11 automation techniques |
 
 Then build the report:

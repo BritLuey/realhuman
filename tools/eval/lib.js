@@ -1,7 +1,8 @@
 // Statistics for evaluating realHuman against labelled sessions.
 //
-// A record is labelled by its `context.label` ('human' or 'bot'), set from the demo page URL
-// (`?label=human&run=…`) or by the bot lab. Unlabelled records are counted but not evaluated.
+// A record's ground truth is its `context.truth` ('human' or 'bot'), set from the demo page URL
+// (`?truth=human&run=…`) or by the bot lab. `context.label` is accepted as an older spelling.
+// Records without a truth marker are counted but not evaluated.
 
 const VERDICTS = ['human', 'uncertain', 'bot', 'verified_agent'];
 
@@ -112,6 +113,49 @@ function topReasons(records, limit = 10) {
 
 const mean = (values) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : null);
 
+/** What a session really is, from the test markers: 'human', 'bot' or undefined. */
+export function truthOf(record) {
+  return record.context?.truth ?? record.context?.label;
+}
+
+export const LABELS = ['human', 'unverified', 'suspicious', 'bot', 'verified_agent'];
+
+/** A record's label. Records from engines before labels existed get one derived from their verdict. */
+export function labelOf(record) {
+  if (record.label) return record.label;
+  if (
+    record.verdict === 'human' ||
+    record.verdict === 'bot' ||
+    record.verdict === 'verified_agent'
+  ) {
+    return record.verdict;
+  }
+  return 'unverified';
+}
+
+function countLabels(records) {
+  const counts = Object.fromEntries(LABELS.map((l) => [l, 0]));
+  for (const record of records) counts[labelOf(record)]++;
+  return counts;
+}
+
+/** The two analytics filters the docs recommend, by the labels each one removes. */
+export const FILTERS = {
+  standard: { name: "Standard: exclude label 'bot'", removes: ['bot'] },
+  strict: { name: "Strict: keep only 'human' and 'unverified'", removes: ['bot', 'suspicious'] },
+};
+
+function filterOutcome(humans, bots, removes) {
+  const removedHumans = humans.filter((r) => removes.includes(labelOf(r))).length;
+  const removedBots = bots.filter((r) => removes.includes(labelOf(r))).length;
+  return {
+    botsRemoved: wilson(removedBots, bots.length),
+    humansRemoved: wilson(removedHumans, humans.length),
+    // With zero humans removed in n sessions, the 95% upper bound is about 3/n ("rule of three").
+    humansRemovedUpperBound: humans.length > 0 && removedHumans === 0 ? 3 / humans.length : null,
+  };
+}
+
 /**
  * Evaluates labelled records. Verdicts are recomputed from `realHuman` with the given thresholds,
  * so you can test thresholds other than the ones used in production.
@@ -119,8 +163,8 @@ const mean = (values) => (values.length ? values.reduce((a, b) => a + b, 0) / va
 export function evaluate(input, options = {}) {
   const thresholds = { human: options.human ?? 0.7, bot: options.bot ?? 0.3 };
   const sessions = latestPerSession(input);
-  const humans = sessions.filter((r) => r.context?.label === 'human');
-  const bots = sessions.filter((r) => r.context?.label === 'bot');
+  const humans = sessions.filter((r) => truthOf(r) === 'human');
+  const bots = sessions.filter((r) => truthOf(r) === 'bot');
   const humanScores = humans.map((r) => r.realHuman);
   const botScores = bots.map((r) => r.realHuman);
 
@@ -134,6 +178,7 @@ export function evaluate(input, options = {}) {
     return {
       scenario,
       n: group.length,
+      labels: countLabels(group),
       verdicts,
       detected: wilson(verdicts.bot, group.length),
       meanScore: mean(group.map((r) => r.realHuman)),
@@ -147,6 +192,11 @@ export function evaluate(input, options = {}) {
     sessions: sessions.length,
     unlabelled: sessions.length - humans.length - bots.length,
     runs: [...new Set(sessions.map((r) => r.context?.run).filter(Boolean))].sort(),
+    labels: { human: countLabels(humans), bot: countLabels(bots) },
+    filters: {
+      standard: filterOutcome(humans, bots, FILTERS.standard.removes),
+      strict: filterOutcome(humans, bots, FILTERS.strict.removes),
+    },
     humans: {
       n: humans.length,
       verdicts: humanVerdicts,
@@ -156,7 +206,7 @@ export function evaluate(input, options = {}) {
       meanConfidence: mean(humans.map((r) => r.confidence)),
       // With zero false positives in n sessions, the 95% upper bound is about 3/n ("rule of three").
       ruleOfThree: humans.length > 0 && humanVerdicts.bot === 0 ? 3 / humans.length : null,
-      reasonsWhenNotHuman: topReasons(humans.filter((r) => verdictFor(r, thresholds) !== 'human')),
+      reasonsWhenNotHuman: topReasons(humans.filter((r) => labelOf(r) !== 'human')),
     },
     bots: {
       n: bots.length,
@@ -164,7 +214,9 @@ export function evaluate(input, options = {}) {
       detected: wilson(botVerdicts.bot, bots.length),
       passedAsHuman: wilson(botVerdicts.human, bots.length),
       meanScore: mean(botScores),
-      reasonsWhenMissed: topReasons(bots.filter((r) => verdictFor(r, thresholds) !== 'bot')),
+      reasonsWhenMissed: topReasons(
+        bots.filter((r) => labelOf(r) === 'human' || labelOf(r) === 'unverified'),
+      ),
     },
     scenarios,
     auc: auc(humanScores, botScores),

@@ -24,6 +24,7 @@ export const WEIGHTS = {
   headlessPerMarker: -1.2,
   headlessMax: -3,
   zeroOuterSize: -0.4,
+  noBrowserUi: -1.6,
   software_renderer: -1.5,
   ua_client_hints_mismatch: -2.5,
   worker_mismatch: -3,
@@ -120,10 +121,13 @@ export function analyze(input: AnalysisInput): Analysis {
   if (server.platform === 'ios' || server.platform === 'android')
     headlessMarkers.delete('zero_outer_size');
   if (headlessMarkers.size > 0) {
-    const strong = [...headlessMarkers].filter((marker) => marker !== 'zero_outer_size').length;
-    const weight =
-      strong * WEIGHTS.headlessPerMarker +
-      (headlessMarkers.has('zero_outer_size') ? WEIGHTS.zeroOuterSize : 0);
+    let weight = 0;
+    for (const marker of headlessMarkers) {
+      if (marker === 'zero_outer_size') weight += WEIGHTS.zeroOuterSize;
+      // A desktop window with no tabs or address bar is unusual enough to be moderate on its own.
+      else if (marker === 'no_browser_ui') weight += WEIGHTS.noBrowserUi;
+      else weight += WEIGHTS.headlessPerMarker;
+    }
     add('headless_markers', 'environment', Math.max(WEIGHTS.headlessMax, weight));
   }
 

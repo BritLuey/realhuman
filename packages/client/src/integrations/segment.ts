@@ -5,7 +5,7 @@ interface Analytics {
   track(event: string, properties: Record<string, unknown>): void;
 }
 
-/** Segment: `analytics.track('Bot Verdict', { realHuman, verdict, sid })`. */
+/** Segment: `analytics.track('Bot Verdict', { realHuman, label, verdict, sid })`. */
 export function segment(): Integration {
   return {
     name: 'segment',
@@ -18,6 +18,7 @@ export function segment(): Integration {
         (analytics) =>
           analytics.track('Bot Verdict', {
             realHuman: r.realHuman,
+            label: r.label,
             verdict: r.verdict,
             sid: r.sid,
           }),
