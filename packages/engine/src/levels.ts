@@ -1,5 +1,5 @@
 import type { BotEvidence, HumanEvidence, Label, ReasonCode, Verdict } from '@realhuman/schema';
-import type { Analysis } from './scorer.js';
+import type { Analysis } from './types.js';
 
 /**
  * Cut-offs that turn weighted evidence into plain levels. Documented in

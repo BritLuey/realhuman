@@ -156,6 +156,65 @@ function filterOutcome(humans, bots, removes) {
   };
 }
 
+/** "chrome / windows", plus the privacy browser when one was detected. */
+export function browserGroup(record) {
+  const family = record.server?.uaFamily ?? 'unknown';
+  const platform = record.server?.platform ?? 'unknown';
+  const privacy = record.signals?.env?.privacyBrowser;
+  return privacy ? `${family} / ${platform} (${privacy})` : `${family} / ${platform}`;
+}
+
+/** Label counts and filter removals for each browser group, largest first. */
+function byBrowser(records) {
+  const groups = new Map();
+  for (const record of records) {
+    const key = browserGroup(record);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(record);
+  }
+  return [...groups.entries()]
+    .map(([group, list]) => {
+      const labels = countLabels(list);
+      return {
+        group,
+        n: list.length,
+        labels,
+        standardRemoved: wilson(labels.bot, list.length),
+        strictRemoved: wilson(labels.bot + labels.suspicious, list.length),
+      };
+    })
+    .sort((a, b) => b.n - a.n || a.group.localeCompare(b.group));
+}
+
+/** Each check and how to tell it had no data for a session. */
+const CHECKS = [
+  ['Browser SDK ran', (r) => r.signals === null],
+  ['TLS fingerprint (JA4)', (r) => !r.server?.ja4],
+  ['Client Hints', (r) => r.server?.clientHintsPresent === false],
+  ['Graphics: software renderer', (r) => r.signals && r.signals.env?.softwareRenderer == null],
+  [
+    'Graphics vs operating system',
+    (r) => r.signals && r.signals.env?.rendererPlatformMismatch == null,
+  ],
+  ['Client Hints consistency', (r) => r.signals && r.signals.env?.uaClientHintsMismatch == null],
+  ['Web Worker comparison', (r) => r.signals && r.signals.env?.workerMismatch == null],
+  ['Feature check', (r) => r.signals && r.signals.env?.featureMismatch == null],
+  ['Time zone', (r) => r.signals && r.signals.env?.timezone == null],
+  ['Mouse movement', (r) => r.signals && !r.signals.pointer?.events],
+  ['Typing', (r) => r.signals && !r.signals.keyboard?.events],
+  ['Touch', (r) => r.signals && !r.signals.touch?.events],
+  ['Scrolling', (r) => r.signals && !r.signals.scroll?.events],
+];
+
+/** How often each check had no data, for known humans and known bots. */
+function availability(humans, bots) {
+  return CHECKS.map(([check, missing]) => ({
+    check,
+    humans: { missing: humans.filter((r) => missing(r)).length, n: humans.length },
+    bots: { missing: bots.filter((r) => missing(r)).length, n: bots.length },
+  }));
+}
+
 /**
  * Evaluates labelled records. Verdicts are recomputed from `realHuman` with the given thresholds,
  * so you can test thresholds other than the ones used in production.
@@ -219,6 +278,8 @@ export function evaluate(input, options = {}) {
       ),
     },
     scenarios,
+    byBrowser: { humans: byBrowser(humans), bots: byBrowser(bots) },
+    availability: availability(humans, bots),
     auc: auc(humanScores, botScores),
     roc: roc(humanScores, botScores),
     histogram: {

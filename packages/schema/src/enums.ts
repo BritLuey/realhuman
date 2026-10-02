@@ -1,10 +1,7 @@
 /**
- * The headline outcome for a session.
- *
- * - `human`: realHuman is at or above the `human` threshold.
- * - `bot`: realHuman is at or below the `bot` threshold.
- * - `verified_agent`: an AI agent or crawler that cryptographically identified itself.
- * - `uncertain`: between the thresholds, or not enough evidence yet.
+ * A coarse version of the label, kept for compatibility:
+ * `human` → `human`; `unverified` and `suspicious` → `uncertain`; `bot` → `bot`;
+ * `verified_agent` → `verified_agent`.
  */
 export const VERDICTS = ['human', 'bot', 'verified_agent', 'uncertain'] as const;
 export type Verdict = (typeof VERDICTS)[number];
@@ -43,12 +40,12 @@ export const KINDS = [
 export type Kind = (typeof KINDS)[number];
 
 /**
- * Which engine produced a decision.
+ * Which part of the engine produced a decision.
  *
- * - `gate`: a decisive check (for example a filled honeypot) settled it before any engine ran.
- * - `algorithmic-fallback`: Jev was configured but unavailable, so the algorithmic engine answered.
+ * - `gate`: a decisive check (for example a filled honeypot) settled it.
+ * - `algorithmic`: the weighted evidence did.
  */
-export const ENGINES = ['algorithmic', 'jev', 'algorithmic-fallback', 'gate'] as const;
+export const ENGINES = ['algorithmic', 'gate'] as const;
 export type EngineName = (typeof ENGINES)[number];
 
 /** Where results are delivered. Configured on the server only. */

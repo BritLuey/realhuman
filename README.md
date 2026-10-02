@@ -4,7 +4,7 @@
 
 **Know which visits came from real people, without blocking anyone.**
 
-realHuman scores every page load from `0` (almost certainly a bot) to `1` (almost certainly a human),
+realHuman labels every page load as `human`, `bot` or somewhere in between, with the evidence behind it,
 so you can filter bots out of your analytics, dashboards and reports.
 
 [![CI](https://github.com/your-org/realhuman/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/realhuman/actions/workflows/ci.yml)
@@ -17,11 +17,12 @@ so you can filter bots out of your analytics, dashboards and reports.
 ---
 
 > [!IMPORTANT]
-> **Project status: pre-1.0.** Every package is implemented and tested. In the [bot lab](tools/bot-lab), 50 of 55
-> automated sessions were scored as bots: every commodity and stealth technique was caught, while purpose-built
-> human-like bots mostly scored `uncertain`. The false-positive rate on real people **has not been measured yet**;
-> follow [Proving it works](docs/guides/evaluation.md) with the hostable [Vercel demo](apps/vercel-demo) to measure
-> it. The packages are not yet published to npm. See the [roadmap](docs/roadmap.md).
+> **Project status: pre-1.0.** Every package is implemented and tested. In the latest local
+> [bot lab](tools/bot-lab) run, 50 of 55 automated sessions were labelled `bot`, including every commodity and
+> stealth technique. The other 5, a purpose-built bot with human-like movement and hidden headless traits, were
+> labelled `suspicious`; none passed as human. The false-positive rate on real people **has not been measured
+> yet**; follow [Proving it works](docs/guides/evaluation.md) with the hostable [Vercel demo](apps/vercel-demo) to
+> measure it. The packages are not yet published to npm. See the [roadmap](docs/roadmap.md).
 
 ## What is realHuman?
 
@@ -71,21 +72,18 @@ sequenceDiagram
 
 1. **Collect.** The browser SDK watches for signals from the moment the page loads.
 2. **Send.** After `flushAfterMs` (default 1000 ms) it sends a summary to *your* server, and sends one final update as the page closes.
-3. **Score.** Your server adds network evidence (the [JA4](docs/glossary.md#ja4) TLS fingerprint, user agent and headers) and labels the visit with either:
-   - the **algorithmic** engine (built in, free, explainable), or
-   - the **[Jev](docs/guides/jev-engine.md)** engine (TypeSafe AI's decision model, via Vercel AI Gateway, OpenRouter or TypeSafe directly).
+3. **Label.** Your server adds network evidence (the [JA4](docs/glossary.md#ja4) TLS fingerprint, user agent and headers) and labels the visit with explainable rules: a few conclusive checks first, then weighted evidence for and against. Every label comes with the reasons behind it.
 4. **Deliver.** Your backend receives every decision. You can also choose to send the label and score back to the page for tools like New Relic.
 
 Read the full version: [How it works](docs/getting-started/how-it-works.md).
 
 ## Choose your setup
 
-You make three choices. Each has a sensible default.
+You make two choices.
 
 | Choice | Options | Default | Guide |
 |---|---|---|---|
 | **Where does it run?** | Vercel · AWS CloudFront · Node.js | – | [Vercel](docs/getting-started/quickstart-vercel.md) · [CloudFront](docs/getting-started/quickstart-cloudfront.md) · [Node.js](docs/getting-started/quickstart-node.md) |
-| **Who decides?** | `algorithmic` · `jev` | `algorithmic` | [Jev engine](docs/guides/jev-engine.md) |
 | **Who gets the result?** | `server` · `client` · `both` | `server` | [Delivery modes](docs/guides/delivery-modes.md) |
 
 ## Try it locally in two minutes
@@ -151,11 +149,10 @@ Full walkthroughs: [Vercel](docs/getting-started/quickstart-vercel.md) · [Cloud
 | Package | What it does |
 |---|---|
 | [`@realhuman/schema`](packages/schema) | Data formats and TypeScript types shared by everything else |
-| [`@realhuman/client`](packages/client) | Browser SDK: signal collection, honeypots, sending, integrations. No runtime dependencies, about 8 KB gzipped (budget 8.5 KB) |
+| [`@realhuman/client`](packages/client) | Browser SDK: signal collection, honeypots, sending, integrations. No runtime dependencies, under 9 KB gzipped |
 | [`@realhuman/engine`](packages/engine) | Scoring engine, session tokens, decision records, re-scoring CLI |
 | [`@realhuman/vercel`](packages/vercel) | Vercel / Next.js adapter, including edge tagging |
 | [`@realhuman/aws`](packages/aws) | AWS Lambda + CloudFront adapter and CDK construct |
-| [`@realhuman/jev`](packages/jev) | Optional Jev engine (Vercel AI Gateway, OpenRouter, TypeSafe, AI SDK) |
 | [`@realhuman/react`](packages/react) | React provider and hook |
 | [`@realhuman/node`](packages/node) | Express, Connect, `node:http`, Hono, Bun and Deno adapter |
 
@@ -183,8 +180,35 @@ Everything is in [`docs/`](docs/README.md). Good places to start:
 - **Never stored on the device:** no cookies, localStorage or other persistent identifier.
 - **Only summaries leave the browser.** For example, "typing rhythm varied naturally", not the keys pressed.
 - **Consent-ready:** start with `init({ consent: false })` and call `grantConsent()` when your consent tool allows it.
+- **Your ids only if you add them:** records carry no identifier unless you attach one, such as a user id. See
+  [Attaching a user id](docs/guides/filtering-your-data.md#attaching-a-user-id).
 
 Details: [Privacy & compliance](docs/operations/privacy-and-compliance.md).
+
+## Design principles
+
+realHuman's checks follow the lessons of
+[Browser Fingerprinting 2026: What Works, What Doesn't](https://webdecoy.com/blog/browser-fingerprinting-2026-what-still-works/)
+(Chris Portscheller, WebDecoy, March 2026):
+
+- **Consistency, not identity.** No single signal proves anything. realHuman asks whether a browser's claims
+  agree with each other: the user agent, Client Hints, TLS fingerprint, graphics stack and a Web Worker should
+  all describe the same browser. A bot can fake any one of them; keeping every layer consistent is much harder.
+- **The network layer can't be faked from JavaScript.** The JA4 TLS fingerprint comes from the connection
+  itself, which page scripts can't change. It shows whether a real browser or an HTTP library connected, without identifying
+  anyone: everyone on the same browser build shares it.
+- **Weak signals stay weak.** Screen size, window geometry and plugin lists are easy to fake and shared by
+  millions of devices. On their own they can make a session `suspicious`, never `bot`. The user agent is used
+  for consistency checks, and decides on its own only when it openly says it's a bot.
+- **Behaviour alongside the environment.** Browsers driven by automation tools share real browsers'
+  fingerprints, so mouse, typing, touch and scroll rhythms add evidence the environment checks can't.
+- **Privacy settings aren't bot evidence.** Brave, Tor, Firefox's fingerprinting protection, extensions and
+  company proxies change what a browser reports. realHuman recognises privacy browsers and switches off the
+  checks they trip, and a check that can't run counts as no evidence, never as bot evidence.
+- **No canvas, audio or font fingerprinting.** Those techniques identify devices, which realHuman is designed
+  not to do, and browsers increasingly randomise them anyway.
+- **Measure false positives before trusting it.** That's why realHuman labels data instead of blocking, and why
+  it ships with [evaluation tooling](docs/guides/evaluation.md) that breaks results down by browser.
 
 ## For enterprise teams
 

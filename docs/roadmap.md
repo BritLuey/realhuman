@@ -7,25 +7,27 @@
 | **M2: Algorithmic engine** | Nonces, gates, evidence scoring, delivery modes, `onDecision`, Web Bot Auth | `@realhuman/engine` | ✅ Done |
 | **M3: Vercel adapter** | Route handlers, JA4 from Vercel headers, edge tagging | `@realhuman/vercel` | ✅ Done |
 | **M4: AWS adapter** | Lambda handler, Secrets Manager support, CDK construct | `@realhuman/aws` | ✅ Done |
-| **M5: Jev engine** | Jev via Vercel AI Gateway, OpenRouter, TypeSafe and the AI SDK; failover; shadow mode | `@realhuman/jev` | ✅ Done |
+| ~~M5: Jev engine~~ | An optional AI decision engine with shadow mode. Removed before release to keep realHuman focused on explainable rules that run entirely in your infrastructure | – | Removed |
 | **M6: Frontend integrations** | New Relic, Datadog RUM, GA4, GTM, Segment, PostHog; React provider | `@realhuman/client`, `@realhuman/react` | ✅ Done |
 | **M7: Calibration tooling** | Bot lab, evaluation report, re-scoring CLI, Node adapter, local and Vercel demos | `@realhuman/node`, `tools/bot-lab`, `tools/eval`, `apps/demo`, `apps/vercel-demo` | ✅ Done |
+| **M8: Labels and consistency checks** | Labels and evidence levels; your own ids in records (`setContext`, `serverContext`); graphics-vs-operating-system and extended tamper checks; per-browser evaluation | `@realhuman/schema`, `@realhuman/engine`, `@realhuman/client`, `tools/eval` | ✅ Done |
 
 ## Before 1.0
 
 Four things stand between the current code and a 1.0 release:
 
-1. **Measure the false-positive rate on real people.** The bot lab scores 50 of 55 automated sessions as bots
-   (every commodity and stealth technique), but it can't say how often real people are mistaken for bots. Follow
+1. **Measure the false-positive rate on real people.** The bot lab labels 50 of 55 automated sessions `bot`
+   (every commodity and stealth technique) and the rest `suspicious`, but it can't say how often real people are
+   mistaken for bots. Follow
    [Proving it works](guides/evaluation.md): host the [Vercel demo](../apps/vercel-demo), collect at least 300
    labelled human sessions across devices and browsers, tune on one run, confirm on a fresh one, and publish both rates.
-2. **Close the human-like bot gap.** Purpose-built bots with human-like movement and hidden headless markers mostly
-   score `uncertain`. Investigate further environment signals in the bot lab before 1.0.
+2. **Close the human-like bot gap.** Purpose-built bots with human-like movement and hidden headless traits are
+   labelled `suspicious`, not `bot`, so only the strict filter removes them. Moving them to `bot` needs
+   independent evidence, plus the human baseline from step 1 to show it doesn't flag real people.
 3. **Verify in production environments.**
    - Confirm Vercel's `x-vercel-ja4-digest` and CloudFront's `CloudFront-Viewer-JA4-Fingerprint` values parse
      as standard JA4.
    - Deploy the CDK construct to a real AWS account; its permissions are checked at synth time only.
-   - Confirm OpenRouter's Jev evaluation endpoint, which is currently assumed.
 4. **Publish to npm.** Claim the `@realhuman` npm scope, set up trusted publishing, and merge the first
    "Version Packages" pull request.
 

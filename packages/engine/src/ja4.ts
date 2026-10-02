@@ -54,16 +54,21 @@ export interface Ja4Lists {
   readonly nonBrowser: readonly string[];
 }
 
-export type Ja4Assessment = 'browser_like' | 'mismatch' | 'non_browser' | 'unknown';
+export type Ja4Assessment =
+  | 'browser_like'
+  | 'mismatch'
+  | 'non_browser'
+  | 'known_non_browser'
+  | 'unknown';
 
 /**
  * Compares a JA4 fingerprint with a client that claims to be a modern browser.
  *
- * - `non_browser`: no ALPN at all, or an exact match in the non-browser list. No modern browser,
- *   and no common TLS-inspecting proxy, connects like this.
- * - `mismatch`: unusual for a browser (TLS < 1.3, no SNI, HTTP/1.1-only ALPN, very few
- *   ciphers or extensions). Real people behind unusual proxies can trigger this, so it's
- *   weighted evidence rather than a gate.
+ * - `known_non_browser`: an exact match in your own non-browser list.
+ * - `non_browser`: no ALPN at all, as HTTP libraries connect. No modern browser does this, but a
+ *   company proxy that re-encrypts traffic can, so it's weighted evidence, not a gate.
+ * - `mismatch`: unusual for a browser (TLS < 1.3, no SNI, HTTP/1.1-only ALPN, very few ciphers or
+ *   extensions). Real people behind unusual proxies can trigger this too.
  */
 export function assessJa4(
   parts: Ja4Parts | null,
@@ -73,7 +78,7 @@ export function assessJa4(
   if (!parts) return 'unknown';
   const raw = parts.raw.toLowerCase();
   if (lists.browser.some((value) => value.toLowerCase() === raw)) return 'browser_like';
-  if (lists.nonBrowser.some((value) => value.toLowerCase() === raw)) return 'non_browser';
+  if (lists.nonBrowser.some((value) => value.toLowerCase() === raw)) return 'known_non_browser';
   if (!claimsBrowser) return 'unknown';
   if (parts.alpn === '00') return 'non_browser';
   if (parts.tlsVersion < 13 || !parts.sni) return 'mismatch';

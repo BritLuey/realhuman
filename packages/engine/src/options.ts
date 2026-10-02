@@ -6,8 +6,6 @@ import {
   type DeliveryMode,
   MAX_PAYLOAD_BYTES,
 } from '@realhuman/schema';
-import { algorithmicScorer } from './algorithmic.js';
-import type { Scorer } from './scorer.js';
 
 export type EnvReader = (name: string) => string | undefined;
 
@@ -16,13 +14,6 @@ export interface Logger {
   info(...args: unknown[]): void;
   warn(...args: unknown[]): void;
   error(...args: unknown[]): void;
-}
-
-export interface Thresholds {
-  /** realHuman at or above this is `human`. */
-  readonly human: number;
-  /** realHuman at or below this is `bot`. */
-  readonly bot: number;
 }
 
 export interface WebBotAuthOptions {
@@ -40,21 +31,27 @@ export interface WebBotAuthOptions {
   readonly fetch?: typeof fetch;
 }
 
+/** Values to merge into a record's `context`. `undefined` or `null` values are skipped. */
+export type ContextValues = Readonly<Record<string, string | null | undefined>>;
+
 export interface EngineOptions {
-  /** Who decides. Default `'algorithmic'`. Pass `jev({...})` from `@realhuman/jev` to use Jev. */
-  readonly engine?: 'algorithmic' | Scorer;
-  /** A second engine whose answer is stored in `record.shadow`. */
-  readonly shadow?: 'algorithmic' | Scorer;
   /** Who receives results. Default `'server'`. */
   readonly deliver?: DeliveryMode;
-  /** Result fields the browser may see. Default `['realHuman', 'verdict', 'confidence']`. */
+  /** Result fields the browser may see. Default `['realHuman', 'label', 'verdict', 'confidence']`. */
   readonly clientFields?: readonly ClientField[];
   /** Receives every decision record. */
   readonly onDecision?: (record: DecisionRecord) => void | Promise<void>;
   /** Default 10 000 ms. */
   readonly onDecisionTimeoutMs?: number;
-  /** Default `{ human: 0.7, bot: 0.3 }`. */
-  readonly thresholds?: Partial<Thresholds>;
+  /**
+   * Adds trusted values to every record's `context`, worked out on your server from the request,
+   * for example the signed-in user's id from your session cookie. Every key you return is the
+   * server's: the browser's value for it is dropped, even when you return `null`. If this throws,
+   * the record has no context at all. Runs for each record; keep it fast.
+   */
+  readonly serverContext?: (
+    request: Request,
+  ) => ContextValues | undefined | Promise<ContextValues | undefined>;
   /** Name of the env variable holding the signing secret. Default `'REALHUMAN_SECRET'`. */
   readonly secretEnv?: string;
   /** Name of the env variable holding the previous secret during rotation. Default `'REALHUMAN_SECRET_PREVIOUS'`. */
@@ -80,13 +77,11 @@ export interface EngineOptions {
 }
 
 export interface ResolvedOptions {
-  readonly engine: Scorer;
-  readonly shadow: Scorer | null;
   readonly deliver: DeliveryMode;
   readonly clientFields: readonly ClientField[];
   readonly onDecision: ((record: DecisionRecord) => void | Promise<void>) | null;
   readonly onDecisionTimeoutMs: number;
-  readonly thresholds: Thresholds;
+  readonly serverContext: EngineOptions['serverContext'] | null;
   readonly secretEnv: string;
   readonly previousSecretEnv: string;
   readonly nonceTtlMs: number;
@@ -112,12 +107,6 @@ export function defaultEnv(name: string): string | undefined {
   return proc?.env?.[name];
 }
 
-function resolveScorer(value: 'algorithmic' | Scorer | undefined): Scorer {
-  if (value === undefined || value === 'algorithmic') return algorithmicScorer;
-  if (typeof value === 'object' && typeof value.score === 'function') return value;
-  throw new TypeError(`[realhuman] engine must be 'algorithmic' or a scorer such as jev({...}).`);
-}
-
 /** Applies defaults and validates. Throws a TypeError for invalid configuration. */
 export function resolveOptions(options: EngineOptions = {}): ResolvedOptions {
   const deliver = options.deliver ?? 'server';
@@ -134,13 +123,8 @@ export function resolveOptions(options: EngineOptions = {}): ResolvedOptions {
     }
   }
 
-  const thresholds = { human: 0.7, bot: 0.3, ...options.thresholds };
-  if (
-    !(thresholds.bot >= 0 && thresholds.human <= 1 && thresholds.bot < thresholds.human) ||
-    Number.isNaN(thresholds.bot) ||
-    Number.isNaN(thresholds.human)
-  ) {
-    throw new TypeError('[realhuman] thresholds must satisfy 0 <= bot < human <= 1.');
+  if (options.serverContext !== undefined && typeof options.serverContext !== 'function') {
+    throw new TypeError('[realhuman] serverContext must be a function of the request.');
   }
 
   const positive = (name: string, value: number | undefined, fallback: number): number => {
@@ -151,16 +135,12 @@ export function resolveOptions(options: EngineOptions = {}): ResolvedOptions {
     return result;
   };
 
-  const shadow = options.shadow === undefined ? null : resolveScorer(options.shadow);
-
   return {
-    engine: resolveScorer(options.engine),
-    shadow,
     deliver,
     clientFields,
     onDecision: options.onDecision ?? null,
     onDecisionTimeoutMs: positive('onDecisionTimeoutMs', options.onDecisionTimeoutMs, 10_000),
-    thresholds,
+    serverContext: options.serverContext ?? null,
     secretEnv: options.secretEnv ?? 'REALHUMAN_SECRET',
     previousSecretEnv: options.previousSecretEnv ?? 'REALHUMAN_SECRET_PREVIOUS',
     nonceTtlMs: positive('nonceTtlMs', options.nonceTtlMs, 15 * 60_000),

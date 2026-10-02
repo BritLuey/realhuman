@@ -1,6 +1,5 @@
 import type { Kind, Label, ReasonCode } from '@realhuman/schema';
-import { botEvidenceLevel, humanEvidenceLevel, labelFor } from './levels.js';
-import type { Analysis, EvidenceGroup, Scorer, ScorerResult } from './scorer.js';
+import type { Analysis, EvidenceGroup } from './types.js';
 
 /** Starting log-odds before any evidence: most sessions that run JavaScript are people. */
 export const PRIOR = 0.4;
@@ -24,13 +23,15 @@ function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
 
-/**
- * Scores an analysis with the weighted-evidence model. Pure and synchronous.
- *
- * `realHuman` ranks sessions (higher = more human-like evidence). It is not a calibrated
- * probability; for filtering, use the label from `labelFor`.
- */
-export function scoreAlgorithmically(analysis: Analysis): ScorerResult {
+export interface Score {
+  /** 0-1 ranking score: higher means more human-like evidence. Not a calibrated probability. */
+  readonly realHuman: number;
+  /** 0-1: how much evidence the score rests on. */
+  readonly confidence: number;
+}
+
+/** Scores an analysis with the weighted-evidence model. Pure and synchronous. */
+export function scoreAlgorithmically(analysis: Analysis): Score {
   const totals: Record<EvidenceGroup, number> = { environment: 0, network: 0, behaviour: 0 };
   for (const item of analysis.evidence) totals[item.group] += item.weight;
 
@@ -43,25 +44,19 @@ export function scoreAlgorithmically(analysis: Analysis): ScorerResult {
     if (capped < 0) negative += capped;
   }
 
-  const realHuman = round(sigmoid(logOdds));
-  const confidence = round(
-    clamp(
-      0.15 +
-        0.25 * analysis.coverage.network +
-        0.55 * analysis.coverage.behaviour +
-        Math.min(0.4, -negative / 10),
-      0,
-      0.99,
+  return {
+    realHuman: round(sigmoid(logOdds)),
+    confidence: round(
+      clamp(
+        0.15 +
+          0.25 * analysis.coverage.network +
+          0.55 * analysis.coverage.behaviour +
+          Math.min(0.4, -negative / 10),
+        0,
+        0.99,
+      ),
     ),
-  );
-
-  const label = labelFor(
-    botEvidenceLevel(analysis),
-    humanEvidenceLevel(analysis),
-    analysis.server.verifiedAgent !== null,
-  );
-  const reasons: ReasonCode[] = [...analysis.evidence.map((e) => e.code), ...analysis.neutral];
-  return { realHuman, confidence, kind: inferKind(analysis, label), reasons };
+  };
 }
 
 function has(analysis: Analysis, code: ReasonCode): boolean {
@@ -86,7 +81,9 @@ export function inferKind(analysis: Analysis, label: Label): Kind {
   if (
     has(analysis, 'headless_markers') ||
     has(analysis, 'software_renderer') ||
+    has(analysis, 'renderer_platform_mismatch') ||
     has(analysis, 'ua_ja4_mismatch') ||
+    has(analysis, 'ja4_non_browser') ||
     has(analysis, 'sec_fetch_missing')
   ) {
     return 'scraper';
@@ -94,11 +91,3 @@ export function inferKind(analysis: Analysis, label: Label): Kind {
   if (!analysis.signals) return 'no_js';
   return label === 'bot' ? 'automation' : 'unknown';
 }
-
-/** The built-in engine. */
-export const algorithmicScorer: Scorer = {
-  name: 'algorithmic',
-  async score(analysis: Analysis): Promise<ScorerResult> {
-    return scoreAlgorithmically(analysis);
-  },
-};

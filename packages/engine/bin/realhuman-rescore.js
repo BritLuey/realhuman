@@ -18,7 +18,6 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0);
 }
 
-const silent = { debug() {}, info() {}, warn() {}, error: (...a) => console.error(...a) };
 let line = 0;
 let rescored = 0;
 let skipped = 0;
@@ -43,7 +42,7 @@ for await (const text of createInterface({
     skipped++;
     continue;
   }
-  const record = await rescore(parsed.output, { logger: silent });
+  const record = rescore(parsed.output);
   process.stdout.write(`${JSON.stringify(record)}\n`);
   rescored++;
 }

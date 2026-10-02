@@ -23,6 +23,7 @@ const inert = (): RealHumanInstance => ({
   off() {},
   attach() {},
   grantConsent() {},
+  setContext() {},
   destroy() {},
 });
 

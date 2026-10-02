@@ -261,6 +261,31 @@ describe('updates and results', () => {
     await rh.score();
     expect(server.payloads().map((p) => p.context)).toEqual([{ visit: '1' }, { visit: '2' }]);
   });
+
+  it('setContext adds values to later updates, overrides the option, and null removes', async () => {
+    rh = init({ context: { gaClientId: '123.456', plan: 'free' } });
+    await settle();
+    rh.setContext({ userId: 'user_42', plan: 'pro' });
+    await rh.score();
+    rh.setContext({ userId: null });
+    await rh.score();
+    expect(server.payloads().map((p) => p.context)).toEqual([
+      { gaClientId: '123.456', plan: 'free' },
+      { gaClientId: '123.456', plan: 'pro', userId: 'user_42' },
+      { gaClientId: '123.456', plan: 'pro' },
+    ]);
+  });
+
+  it('keeps sending if the context function throws', async () => {
+    rh = init({
+      context: () => {
+        throw new Error('analytics not ready');
+      },
+    });
+    rh.setContext({ userId: 'user_42' });
+    await settle();
+    expect(server.payloads()[0]?.context).toEqual({ userId: 'user_42' });
+  });
 });
 
 describe('cleanContext', () => {

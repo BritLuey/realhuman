@@ -130,7 +130,7 @@ Nothing showing up? See [Troubleshooting](../operations/troubleshooting.md).
 | Send results to a database or warehouse | [Ingesting decisions](../guides/ingesting-decisions.md) |
 | Show the score to New Relic, Datadog or GA4 | Set `deliver: 'both'`, then follow [Frontend integrations](../guides/frontend-integrations.md) |
 | Add honeypots to your forms | Add `data-realhuman` to the `<form>`. See [Honeypots](../guides/honeypots.md) |
-| Use the Jev engine | [Jev engine](../guides/jev-engine.md) |
+| Attach a user id to each record | [Attaching a user id](../guides/filtering-your-data.md#attaching-a-user-id) |
 | Wait for cookie consent | `init({ consent: false })`, then `rh.grantConsent()`. See [Browser SDK](../guides/browser-sdk.md#consent) |
 
 ### Optional: label visitors who don't run JavaScript

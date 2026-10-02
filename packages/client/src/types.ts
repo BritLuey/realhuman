@@ -62,6 +62,12 @@ export interface RealHumanInstance {
   off(event: 'result', fn: (result: ClientResult) => void): void;
   /** Adds a honeypot field and time trap to this form. */
   attach(form: HTMLFormElement): void;
+  /**
+   * Adds or changes context values sent with every later update, for example a user id once
+   * someone signs in. `null` removes a key. Same limits as the `context` option. Call
+   * `score()` afterwards to send the new values straight away.
+   */
+  setContext(values: Readonly<Record<string, string | null>>): void;
   /** Starts collecting, if initialised with `consent: false`. */
   grantConsent(): void;
   /** Stops collecting and removes every listener, timer, observer and injected element. */

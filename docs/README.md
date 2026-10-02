@@ -22,10 +22,8 @@ Want to see it working first? Run the [demo site](../apps/demo) locally; it take
 | [Honeypots](guides/honeypots.md) | Add invisible bot traps to your forms |
 | [Delivery modes](guides/delivery-modes.md) | Choose who receives the result: backend, browser, or both |
 | [Ingesting decisions](guides/ingesting-decisions.md) | Store decision records in a database or warehouse |
-| [Filtering your data](guides/filtering-your-data.md) | Remove bot traffic from analytics, with example SQL |
+| [Filtering your data](guides/filtering-your-data.md) | Remove bot traffic from analytics, with example SQL, and attach your own ids such as a user id |
 | [Frontend integrations](guides/frontend-integrations.md) | Send the score to New Relic, Datadog, GA4, Segment, PostHog or GTM |
-| [Jev engine](guides/jev-engine.md) | Let TypeSafe AI's Jev model make the decision instead of the built-in rules |
-| [Shadow mode](guides/shadow-mode.md) | Compare two engines safely before switching |
 | [Proving it works](guides/evaluation.md) | Measure detection and false-positive rates with labelled humans and bots, and publish the results |
 
 ## Reference: exact details

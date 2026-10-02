@@ -5,8 +5,8 @@ This page is for security reviewers and platform teams. To report a vulnerabilit
 
 > [!NOTE]
 > Each control below is covered by automated tests in the package that implements it
-> (`packages/engine/test`, `packages/client/test`, `packages/aws/test`, `packages/jev/test`). The
-> [bot lab](../../tools/bot-lab) exercises them end to end against a real browser.
+> (`packages/engine/test`, `packages/client/test`, `packages/vercel/test`, `packages/aws/test`,
+> `packages/node/test`). The [bot lab](../../tools/bot-lab) exercises them end to end against a real browser.
 
 ## What realHuman protects, and what it doesn't
 
@@ -33,6 +33,7 @@ read your server's memory or environment.
 | **Server-side request forgery via Web Bot Auth.** A request names an attacker-chosen key directory URL. | Key directories are only fetched for agent origins you list in `webBotAuth.agents` (HTTPS only, no redirects, 1.5 s timeout, 64 KB limit, cached for an hour). With the default empty list, nothing is ever fetched. |
 | **Denial of service against the endpoint.** | Payloads are capped (`maxPayloadBytes`, default 16 KB). Validation is linear-time with no regex backtracking risk. Put the endpoint behind your existing WAF and rate limiting (Vercel Firewall, AWS WAF). |
 | **Tampering with browser-delivered scores.** | Documented as untrusted. The backend record is the source of truth. See [Delivery modes](../guides/delivery-modes.md#a-word-on-trust). |
+| **Forged ids in `context`.** A visitor sends someone else's user id from the browser, so your pipeline updates the wrong row. | Browser `context` is an untrusted claim, like the rest of the payload. Set any id you act on with `serverContext`: every key it returns replaces the browser's value, even when it's `null`, and if it throws the record has no context. See [Attaching a user id](../guides/filtering-your-data.md#attaching-a-user-id). |
 | **Secret leakage.** | Secrets are read from environment variables or Secrets Manager by name, never from code. Rotation is supported without downtime. Secrets are never logged. |
 | **Supply-chain compromise.** | Minimal dependencies (the schema package depends only on `valibot`), npm provenance on every release, lockfile-pinned CI. See [Versioning & support](versioning-and-support.md#supply-chain). |
 | **Breaking the host page.** | The SDK never throws into host code, uses passive listeners only, and degrades gracefully when blocked. |

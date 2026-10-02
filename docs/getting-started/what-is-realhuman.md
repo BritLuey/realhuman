@@ -54,16 +54,15 @@ unless it's conclusive, such as a filled-in honeypot.
 - **Not a firewall or CAPTCHA.** It doesn't stop traffic. If you need to block bots, use a web application firewall (WAF) as well.
 - **Not a tracking tool.** It stores nothing on the visitor's device and creates no ID that follows people between visits. Mouse coordinates and key presses never leave the browser, only summaries of them. See [Privacy & compliance](../operations/privacy-and-compliance.md).
 - **Not a hosted service.** It runs in your own Vercel project, AWS account or Node.js server. No data goes to us.
-- **Not perfect.** A well-funded attacker with real devices can look human. realHuman catches the large majority of everyday automation and makes the rest expensive. Treat scores as strong evidence, not proof.
+- **Not perfect.** A well-funded attacker with real devices can look human. realHuman catches the large majority of everyday automation and makes the rest expensive. Treat labels as strong evidence, not proof.
 
 ## The parts
 
 | Part | Where it runs | What it does |
 |---|---|---|
 | **Browser SDK** (`@realhuman/client`) | In your web pages | Collects signals and sends a summary to your server |
-| **Engine** (`@realhuman/engine`) | On your server or edge | Checks the session token, adds network evidence, works out the score |
+| **Engine** (`@realhuman/engine`) | On your server or edge | Checks the session token, adds network evidence, works out the label |
 | **Adapter** (`@realhuman/vercel`, `@realhuman/aws`, `@realhuman/node`) | Wraps the engine | Connects the engine to your hosting platform and reads trusted network headers |
-| **Jev engine** (`@realhuman/jev`), optional | Calls TypeSafe AI's Jev model | An alternative decision-maker to the built-in rules |
 
 ## Key terms
 
@@ -75,7 +74,7 @@ You'll see these words throughout the docs. The [glossary](../glossary.md) has t
 | **seq** | The update number within a page load: `0` for the first, then `1`, `2`… The highest number is the latest. |
 | **Decision record** | The full result your backend receives for each update, including reasons. |
 | **Delivery mode** | Whether the result goes to your backend, the browser, or both. |
-| **Engine** | Whatever works out the score: `algorithmic` (built in) or `jev`. |
+| **Label** | The field to filter on: `human`, `unverified`, `suspicious`, `bot` or `verified_agent`. |
 
 ## Next
 

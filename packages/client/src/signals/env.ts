@@ -182,19 +182,91 @@ const TAMPER_PROPS = [
   'hardwareConcurrency',
 ];
 
-/** Navigator getters or Function.prototype.toString replaced by script (stealth plugins). */
-export function nativeTamper(nav: object, proto: object): boolean {
-  const source = Function.prototype.toString;
-  const native = (fn: unknown) => typeof fn === 'function' && NATIVE.test(source.call(fn));
-  if (!native(source) || Object.getOwnPropertyNames(nav).length > 0) return true;
-  return TAMPER_PROPS.some((name) => {
-    const getter = Object.getOwnPropertyDescriptor(proto, name)?.get;
-    return getter !== undefined && !native(getter);
-  });
+/** Screen and window-size getters: host pages never patch these, but bots faking their geometry do. */
+const SCREEN_PROPS = ['width', 'height', 'availWidth', 'availHeight', 'colorDepth'];
+const WINDOW_PROPS = [
+  'outerWidth',
+  'outerHeight',
+  'innerWidth',
+  'innerHeight',
+  'screenX',
+  'screenY',
+];
+
+/**
+ * Whether a function is the browser's own. With `named` (Chromium, where the format is verified),
+ * its source must also carry its name: Proxy wrappers used by stealth plugins print as
+ * `function () { [native code] }` and are caught.
+ */
+export function isNativeFunction(fn: unknown, name: string, named: boolean): boolean {
+  if (typeof fn !== 'function') return false;
+  let text: string;
+  try {
+    text = Function.prototype.toString.call(fn);
+  } catch {
+    return false;
+  }
+  return NATIVE.test(text) && (!named || text.includes(name));
+}
+
+export interface TamperTarget {
+  readonly owner: object | undefined;
+  readonly names: readonly string[];
+}
+
+/** The getters checked by default: navigator, screen and window size. */
+export function tamperTargets(): TamperTarget[] {
+  return [
+    { owner: Navigator.prototype, names: TAMPER_PROPS },
+    { owner: typeof Screen === 'undefined' ? undefined : Screen.prototype, names: SCREEN_PROPS },
+    { owner: window, names: WINDOW_PROPS },
+  ];
+}
+
+/** Getters, or Function.prototype.toString itself, replaced by script (stealth plugins). */
+export function nativeTamper(
+  nav: object,
+  targets: readonly TamperTarget[],
+  named = false,
+): boolean {
+  if (!isNativeFunction(Function.prototype.toString, 'toString', named)) return true;
+  if (Object.getOwnPropertyNames(nav).length > 0) return true;
+  return targets.some(
+    ({ owner, names }) =>
+      owner !== undefined &&
+      names.some((name) => {
+        const getter = Object.getOwnPropertyDescriptor(owner, name)?.get;
+        return getter !== undefined && !isNativeFunction(getter, name, named);
+      }),
+  );
 }
 
 export const isSoftwareRenderer = (renderer: string): boolean =>
   /swiftshader|llvmpipe|softpipe|software|basic render|mesa offscreen/i.test(renderer);
+
+/** The operating system a graphics stack belongs to, from the renderer string. null if unclear. */
+export function graphicsPlatform(renderer: string): 'Windows' | 'Apple' | 'Linux' | null {
+  if (/direct3d|\bd3d(9|11|12)\b/i.test(renderer)) return 'Windows';
+  if (/\bmetal\b|apple (m\d|gpu)/i.test(renderer)) return 'Apple';
+  if (/mesa|llvmpipe|softpipe|gallium/i.test(renderer)) return 'Linux';
+  return null;
+}
+
+/**
+ * Does the graphics stack belong to a different OS than the user agent claims? Linux graphics on
+ * a browser claiming Windows is the classic server-hosted bot in disguise. null when unknown.
+ */
+export function rendererPlatformMismatch(
+  renderer: string | null,
+  platform: string,
+): boolean | null {
+  const graphics = renderer ? graphicsPlatform(renderer) : null;
+  if (!graphics || !platform) return null;
+  if (graphics === 'Windows') return platform !== 'Windows';
+  // iOS user agents contain "like Mac OS X", so parseUa reports them as macOS too.
+  if (graphics === 'Apple') return platform !== 'macOS';
+  return platform === 'Windows' || platform === 'macOS';
+}
 
 /** Smallest step between distinct `performance.now()` values (a bounded busy loop). */
 export function timerGranularity(clock: () => number = () => performance.now()): number {
@@ -211,18 +283,27 @@ export function timerGranularity(clock: () => number = () => performance.now()):
   return step;
 }
 
-function softwareRenderer(firefox: boolean): boolean | null {
-  const gl = document.createElement('canvas').getContext('webgl') as WebGLRenderingContext | null;
-  if (!gl) return null;
+/**
+ * The WebGL renderer string, compared in the browser and never sent. Runs on the main thread and,
+ * from its source text, inside the Worker (with OffscreenCanvas). Returns '' without WebGL.
+ */
+const readRenderer = (firefox: boolean): string => {
   try {
+    const canvas =
+      typeof document === 'undefined'
+        ? new OffscreenCanvas(1, 1)
+        : document.createElement('canvas');
+    const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
+    if (!gl) return '';
     // Firefox already returns the sanitised renderer from RENDERER and warns on the extension.
     const ext = firefox ? null : gl.getExtension('WEBGL_debug_renderer_info');
-    const renderer = gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER);
-    return isSoftwareRenderer(String(renderer ?? ''));
-  } finally {
+    const renderer = String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '');
     gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return renderer;
+  } catch {
+    return '';
   }
-}
+};
 
 /** Runs on the main thread and, from its source text, inside the Worker. */
 const navigatorFacts = () =>
@@ -233,26 +314,36 @@ const navigatorFacts = () =>
     navigator.platform,
   ]);
 
-/** Compares main-thread navigator facts with a Worker's. null on error, CSP or 1 s timeout. */
-function workerMismatch(s: Scope): Promise<boolean | null> {
+interface WorkerFacts {
+  /** Do navigator properties differ between page and Worker? null on error, CSP or timeout. */
+  readonly mismatch: boolean | null;
+  /** The Worker's WebGL renderer, '' if unavailable. */
+  readonly renderer: string;
+}
+
+const NO_WORKER: WorkerFacts = { mismatch: null, renderer: '' };
+
+/** Compares main-thread navigator facts with a Worker's, and reads the Worker's renderer. */
+function workerFacts(s: Scope, firefox: boolean): Promise<WorkerFacts> {
   return new Promise((resolve) => {
     let worker: Worker | undefined;
     let url = '';
-    const done = (value: boolean | null) => {
+    const done = (value: WorkerFacts) => {
       worker?.terminate();
       if (url) URL.revokeObjectURL(url);
       resolve(value);
     };
     try {
-      const source = `postMessage((${navigatorFacts})())`;
+      const source = `postMessage([(${navigatorFacts})(), (${readRenderer})(${firefox})])`;
       url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
       worker = new Worker(url);
-      worker.onmessage = (e) => done(e.data !== navigatorFacts());
-      worker.onerror = () => done(null);
-      s.wait(() => done(null), 1000);
-      s.add(() => done(null));
+      worker.onmessage = (e) =>
+        done({ mismatch: e.data[0] !== navigatorFacts(), renderer: String(e.data[1] ?? '') });
+      worker.onerror = () => done(NO_WORKER);
+      s.wait(() => done(NO_WORKER), 1000);
+      s.add(() => done(NO_WORKER));
     } catch {
-      done(null);
+      done(NO_WORKER);
     }
   });
 }
@@ -265,6 +356,7 @@ export const NEUTRAL_ENV: EnvironmentSignals = {
   uaClientHintsMismatch: null,
   workerMismatch: null,
   featureMismatch: null,
+  rendererPlatformMismatch: null,
   nativeTamper: false,
   privacyBrowser: null,
   timezone: null,
@@ -297,8 +389,9 @@ export function probeEnvironment(s: Scope): EnvProbe {
   const ua = nav.userAgent;
   const u = parseUa(ua);
   const tz = timezone();
-  let software: boolean | null = null;
+  let renderer: string | null = null;
   let worker: boolean | null = null;
+  let workerRenderer = '';
   let permissions = false;
   let brave = false;
   const settle = <T>(p: Promise<T> | undefined, set: (v: T) => void) =>
@@ -315,21 +408,25 @@ export function probeEnvironment(s: Scope): EnvProbe {
           permissions = st.state === 'prompt';
         })
       : 0,
-    settle(workerMismatch(s), (v) => {
-      worker = v;
+    settle(workerFacts(s, u.firefox > 0), (v) => {
+      worker = v.mismatch;
+      workerRenderer = v.renderer;
     }),
     new Promise<void>((resolve) =>
       s.idle(() => {
         try {
-          software = softwareRenderer(u.firefox > 0);
+          renderer = readRenderer(u.firefox > 0) || null;
         } finally {
           resolve();
         }
       }),
     ),
-  ]);
+  ]).then(() => {
+    // A renderer string patched on the page (stealth plugins fake the GPU) doesn't reach Workers.
+    if (renderer && workerRenderer && renderer !== workerRenderer) worker = true;
+  });
 
-  const tamper = nativeTamper(nav, Navigator.prototype);
+  const tamper = nativeTamper(nav, tamperTargets(), u.chromium > 0);
   const clientHints = clientHintsMismatch(ua, nav.userAgentData, window.isSecureContext);
   const features = featureMismatch(
     ua,
@@ -370,10 +467,11 @@ export function probeEnvironment(s: Scope): EnvProbe {
           document.documentElement.getAttributeNames(),
         ),
         headlessMarkers: headless,
-        softwareRenderer: software,
+        softwareRenderer: renderer === null ? null : isSoftwareRenderer(renderer),
         uaClientHintsMismatch: clientHints,
         workerMismatch: worker,
         featureMismatch: features,
+        rendererPlatformMismatch: rendererPlatformMismatch(renderer, u.platform),
         nativeTamper: tamper,
         privacyBrowser: privacy,
         timezone: tz,

@@ -52,13 +52,28 @@ Or in code:
 
 ```ts
 import { rescore } from '@realhuman/engine';
-const updated = await rescore(record); // fresh label, evidence levels, score and reasons
+const updated = rescore(record); // fresh label, evidence levels, score and reasons
 ```
 
-## Plug in another decision-maker
+## Attach your own ids
 
-Any object implementing `Scorer` can be passed as `engine` or `shadow`. That's how
-[`@realhuman/jev`](../jev) works.
+`serverContext` adds trusted values to every record, worked out on your server, for example the
+signed-in user's id from your session:
+
+```ts
+const realHuman = createRealHuman({
+  serverContext: async (request) => ({ userId: (await userIdFromSession(request)) ?? null }),
+  onDecision,
+});
+```
+
+Every key it returns replaces the browser's value, even when it's null, so a browser can't forge it. See
+[Filtering your data](../../docs/guides/filtering-your-data.md#attaching-a-user-id).
+
+## Use the analysis directly
+
+`analyze()` turns signals and network facts into weighted evidence, and `decide()` turns that into a
+label, evidence levels, score and reasons. Both are pure functions, handy for offline analysis.
 
 ## Documentation
 

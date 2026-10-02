@@ -163,7 +163,7 @@ export function createClient(o: RealHumanOptions, onDestroy: () => void): RealHu
         elapsedMs: t - start,
         wallElapsedMs: Date.now() - wall,
         nonceAgeMs: Math.max(0, t - nonceAt),
-        context: cleanContext(typeof o.context === 'function' ? o.context() : o.context),
+        context: currentContext(),
         signals: (collectors as Collectors).signals(),
       };
       const body = toJson(payload);
@@ -233,6 +233,18 @@ export function createClient(o: RealHumanOptions, onDestroy: () => void): RealHu
     });
   }
 
+  /** Values from setContext(), merged over the `context` option. */
+  const extra: Record<string, string> = {};
+  const currentContext = (): ContextValue => {
+    let base: unknown;
+    try {
+      base = typeof o.context === 'function' ? o.context() : o.context;
+    } catch (error) {
+      log('context option failed', error);
+    }
+    return cleanContext({ ...(base && typeof base === 'object' ? base : {}), ...extra });
+  };
+
   const instance: RealHumanInstance = {
     get sid() {
       return sid;
@@ -251,6 +263,12 @@ export function createClient(o: RealHumanOptions, onDestroy: () => void): RealHu
       else pending.push(form);
     },
     grantConsent: s.safe(begin),
+    setContext(values) {
+      for (const [key, value] of Object.entries(values ?? {})) {
+        if (value === null) delete extra[key];
+        else if (typeof value === 'string') extra[key] = value;
+      }
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;

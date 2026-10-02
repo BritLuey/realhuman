@@ -11,7 +11,6 @@ sequenceDiagram
     participant B as Browser (SDK)
     participant E as Edge (Vercel / CloudFront)
     participant S as Engine
-    participant J as Jev (optional)
     participant D as Your backend
 
     B->>E: GET /api/realhuman/init
@@ -20,13 +19,7 @@ sequenceDiagram
     Note over B: Collecting: pointer, keyboard,<br/>touch, scroll, timing, environment,<br/>honeypots
     B->>E: POST /api/realhuman/score (seq 0, after flushAfterMs)
     E->>S: + JA4, user agent, headers
-    S->>S: Validate, run gates
-    alt engine = jev
-        S->>J: Signals + questions
-        J-->>S: Probabilities
-    else engine = algorithmic
-        S->>S: Weigh evidence
-    end
+    S->>S: Validate, run gates, weigh evidence
     S->>D: onDecision(record)
     S-->>B: Score (only if delivery mode includes client)
     Note over B: Keeps collecting…
@@ -90,16 +83,19 @@ forge. This only holds if your server can't be reached except through the CDN; s
 The engine works in four stages:
 
 1. **Validate.** Is the payload well-formed? Is the nonce genuine, unexpired and presented by the same client it was issued to?
-2. **Gates.** Some evidence is conclusive on its own: a filled honeypot, automation framework globals, or a non-browser TLS fingerprint claiming to be a browser. Any of these ends the analysis: the label is `bot`, with conclusive bot evidence.
+2. **Gates.** Some evidence is conclusive on its own: a filled honeypot, a followed trap link, automation framework globals, or a user agent that openly says it's a bot. Any of these ends the analysis: the label is `bot`, with conclusive bot evidence.
 3. **Verified agents.** An AI agent with a valid Web Bot Auth signature, from an agent you have chosen to trust (`webBotAuth.agents`), gets the verdict `verified_agent`, so you can decide separately whether to count it.
 4. **Evidence levels and label.** Every other piece of evidence has a weight. Bot-leaning weights add up to a
    **bot evidence** level (none, weak, moderate, strong) and human-leaning weights to a **human evidence** level
    (none, some, strong). Strong bot evidence makes the label `bot` and moderate makes it `suspicious`; otherwise
    human evidence makes it `human`, and no evidence leaves it `unverified`. The same weights also produce a
    score for ranking. See [Understanding results](../guides/understanding-results.md).
-   - With **`jev`**, the evidence is also sent to [Jev](../guides/jev-engine.md), whose probability can settle
-     cases the evidence left open. The gates still run first, and if Jev is slow or unavailable, the algorithmic
-     engine answers instead.
+
+Most of the strongest evidence is about **consistency** rather than identity: do the user agent, Client Hints,
+TLS fingerprint, graphics stack and a Web Worker all describe the same browser? A bot can fake any one of these,
+but keeping them all in agreement is much harder. A TLS connection that no browser would make is weighted
+evidence rather than a gate (on its own it makes a session `suspicious`), because some company proxies and
+security tools re-make connections that way.
 
 Privacy-hardened browsers (Brave, Tor, Firefox with fingerprinting resistance) deliberately report
 inconsistent details. realHuman recognises them and switches off the penalties that would otherwise
@@ -115,6 +111,9 @@ mark their users as bots.
 
 Each update for the same `sid` replaces the previous one, and **the highest `seq` is the final answer**.
 See [Delivery modes](../guides/delivery-modes.md) and [Ingesting decisions](../guides/ingesting-decisions.md).
+
+Records can also carry your own ids, such as an analytics client id or a signed-in user's id. See
+[Attaching a user id](../guides/filtering-your-data.md#attaching-a-user-id).
 
 ## Visitors without JavaScript
 

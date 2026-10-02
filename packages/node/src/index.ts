@@ -18,8 +18,8 @@ export interface NodeAdapterOptions extends EngineOptions {
   /** Header your proxy sets with the client IP's IANA time zone, if any. */
   readonly timezoneHeader?: string;
   /**
-   * Hook for platforms with a background-task API. By default background work (onDecision,
-   * shadow engines) runs in-process after the response is sent; call `drain()` on shutdown.
+   * Hook for platforms with a background-task API. By default background work (onDecision)
+   * runs in-process after the response is sent; call `drain()` on shutdown.
    */
   readonly waitUntil?: (promise: Promise<unknown>) => void;
 }

@@ -3,14 +3,13 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseClientResult, parseDecisionRecord, parseInitResponse } from '@realhuman/schema';
 import { describe, expect, it, vi } from 'vitest';
-import { createRealHuman, rescore, type Scorer } from '../src/index.js';
+import { createRealHuman, rescore } from '../src/index.js';
 import {
   botSignals,
   browserHeaders,
   CHROME_JA4,
   harness,
   humanSignals,
-  idleSignals,
   SECRET,
   silentLogger,
 } from './helpers.js';
@@ -206,108 +205,83 @@ describe('POST /score', () => {
   });
 });
 
-describe('pluggable scorers', () => {
-  const slow: Scorer = {
-    name: 'jev',
-    timeoutMs: 20,
-    score: () => new Promise(() => {}),
-  };
-  const broken: Scorer = {
-    name: 'jev',
-    score: async () => {
-      throw new Error('boom');
-    },
-  };
-  const fixed: Scorer = {
-    name: 'jev',
-    score: async () => ({
-      realHuman: 0.42,
-      confidence: 0.8,
-      kind: 'unknown',
-      reasons: ['jev_decision'],
-      model: 'm',
-      provider: 'p',
-      questionsVersion: '1',
-    }),
-  };
-
-  it.each([
-    ['times out', slow],
-    ['throws', broken],
-  ])('falls back to algorithmic when the scorer %s', async (_label, scorer) => {
-    const h = harness({ engine: scorer });
+describe('serverContext', () => {
+  it('adds trusted values from the server, overriding the browser on the same key', async () => {
+    const h = harness({
+      serverContext: (request) => ({
+        userId: request.headers.get('x-test-user') ?? undefined,
+        plan: 'pro',
+      }),
+    });
     const { sid, nonce } = await h.init();
-    await h.score({ sid, nonce });
-    expect(h.records[0]?.engine).toBe('algorithmic-fallback');
-    expect(h.records[0]?.reasons).toContain('jev_unavailable');
-  });
-
-  it('records the scorer’s answer and metadata', async () => {
-    const h = harness({ engine: fixed });
-    const { sid, nonce } = await h.init();
-    await h.score({ sid, nonce });
-    expect(h.records[0]).toMatchObject({
-      engine: 'jev',
-      realHuman: 0.42,
-      // A model answer between the thresholds doesn't override strong human evidence.
-      label: 'human',
-      verdict: 'human',
-      model: 'm',
-      provider: 'p',
-      questionsVersion: '1',
+    await h.score(
+      { sid, nonce, context: { userId: 'forged-in-browser', gaClientId: 'GA1.1.1' } },
+      browserHeaders({ 'x-test-user': 'user_42' }),
+    );
+    expect(h.records[0]?.context).toEqual({
+      userId: 'user_42',
+      plan: 'pro',
+      gaClientId: 'GA1.1.1',
     });
   });
 
-  it('never calls the scorer for gated sessions', async () => {
-    const score = vi.fn();
-    const h = harness({ engine: { name: 'jev', score } });
+  it('drops the browser value for every key the server returns, even an empty one', async () => {
+    const h = harness({ serverContext: () => ({ userId: null, plan: undefined }) });
     const { sid, nonce } = await h.init();
-    const signals = humanSignals();
     await h.score({
       sid,
       nonce,
-      signals: { ...signals, env: { ...signals.env, automationMarkers: ['puppeteer'] } },
+      context: { userId: 'forged-in-browser', plan: 'forged', gaClientId: 'GA1.1.1' },
     });
-    expect(score).not.toHaveBeenCalled();
-    expect(h.records[0]).toMatchObject({ engine: 'gate', kind: 'automation', realHuman: 0.02 });
+    expect(h.records[0]?.context).toEqual({ gaClientId: 'GA1.1.1' });
   });
 
-  it('stores a shadow engine’s answer', async () => {
-    const h = harness({ shadow: fixed });
+  it('leaves keys the server does not return to the browser', async () => {
+    const h = harness({ serverContext: () => ({}) });
+    const { sid, nonce } = await h.init();
+    await h.score({ sid, nonce, context: { userId: 'from-browser' } });
+    expect(h.records[0]?.context).toEqual({ userId: 'from-browser' });
+  });
+
+  it('records no context if serverContext throws, so a forged value cannot slip through', async () => {
+    const error = vi.fn();
+    const h = harness({
+      serverContext: () => {
+        throw new Error('session store down');
+      },
+      logger: { ...silentLogger, error },
+    });
+    const { sid, nonce } = await h.init();
+    await h.score({ sid, nonce, context: { userId: 'forged-in-browser', gaClientId: 'GA1.1.1' } });
+    expect(h.records[0]?.context).toEqual({});
+    expect(error).toHaveBeenCalled();
+  });
+
+  it('skips invalid entries and coerces numbers', async () => {
+    const warn = vi.fn();
+    const h = harness({
+      serverContext: async () => ({
+        'bad key': 'x',
+        long: 'y'.repeat(300),
+        accountId: 7 as never,
+        empty: null,
+      }),
+      logger: { ...silentLogger, warn },
+    });
     const { sid, nonce } = await h.init();
     await h.score({ sid, nonce });
-    expect(h.records[0]?.engine).toBe('algorithmic');
-    expect(h.records[0]?.shadow).toMatchObject({
-      engine: 'jev',
-      realHuman: 0.42,
-      label: 'human',
-      verdict: 'human',
-    });
+    expect(h.records[0]?.context).toEqual({ accountId: '7' });
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 
-  it('lets a model move open cases: low probability to bot, high to human', async () => {
-    const answer = (realHuman: number): Scorer => ({
-      name: 'jev',
-      score: async () => ({
-        realHuman,
-        confidence: 0.9,
-        kind: 'unknown',
-        reasons: ['jev_decision'],
-      }),
-    });
-    const low = harness({ engine: answer(0.1) });
-    const a = await low.init();
-    await low.score({ sid: a.sid, nonce: a.nonce });
-    expect(low.records[0]).toMatchObject({
-      label: 'bot',
-      verdict: 'bot',
-      primaryReason: 'jev_decision',
-    });
-
-    const high = harness({ engine: answer(0.95) });
-    const b = await high.init();
-    await high.score({ sid: b.sid, nonce: b.nonce, signals: idleSignals() });
-    expect(high.records[0]).toMatchObject({ label: 'human', primaryReason: 'jev_decision' });
+  it('is included on trap-link records', async () => {
+    const h = harness({ serverContext: () => ({ userId: 'user_42' }) });
+    const { sid, nonce } = await h.init();
+    await h.engine.handle(
+      new Request(`https://shop.example/api/realhuman/t?s=${sid}&n=${encodeURIComponent(nonce)}`),
+      h.ctx,
+    );
+    expect(h.records[0]?.context).toEqual({ userId: 'user_42' });
   });
 });
 
@@ -409,13 +383,13 @@ describe('rescore', () => {
     await h.score({ sid, nonce });
     const original = h.records[0];
     if (!original) throw new Error('no record');
-    const again = await rescore(original, { logger: silentLogger });
+    const again = await rescore(original);
     expect(again.realHuman).toBe(original.realHuman);
     expect(again.verdict).toBe(original.verdict);
     expect(again.sid).toBe(sid);
   });
 
-  it('applies new thresholds and keeps request-only gates', async () => {
+  it('keeps request-only gates', async () => {
     const h = harness();
     const { sid, nonce } = await h.init();
     await h.score(
@@ -424,7 +398,7 @@ describe('rescore', () => {
     );
     const replayed = h.records[0];
     if (!replayed) throw new Error('no record');
-    expect((await rescore(replayed, { logger: silentLogger })).reasons).toContain('nonce_replayed');
+    expect((await rescore(replayed)).reasons).toContain('nonce_replayed');
   });
 
   const bin = fileURLToPath(new URL('../bin/realhuman-rescore.js', import.meta.url));

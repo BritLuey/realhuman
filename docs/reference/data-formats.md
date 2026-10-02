@@ -126,15 +126,11 @@ Passed to `onDecision` for every update. **This is the source of truth for filte
 | `kind` | [Kind](#kind) | What's driving the session |
 | `confidence` | number 0–1 | How much evidence was available. Low early in a visit, or with no interaction. |
 | `reasons` | string[] | Every [reason code](reason-codes.md) behind the decision |
-| `engine` | `algorithmic` \| `jev` \| `algorithmic-fallback` \| `gate` | Who decided. `gate` means a conclusive check settled it. |
+| `engine` | `algorithmic` \| `gate` | Which stage decided. `gate` means a conclusive check settled it. |
 | `engineVersion` | string | Version of the engine package, for re-scoring and audits |
-| `model` | string, optional | Model id (Jev only) |
-| `provider` | string, optional | Provider used (Jev only) |
-| `questionsVersion` | string, optional | Version of the question wording (Jev only) |
-| `shadow` | object, optional | The shadow engine's `{ engine, realHuman, label, verdict, reasons }`. See [Shadow mode](../guides/shadow-mode.md). |
 | `server` | [Server facts](#server-facts) | Network evidence read at the edge |
 | `signals` | [Signals](#signals) or `null` | What the browser observed. `null` when the SDK never ran (`kind: "no_js"`). |
-| `context` | object | Your join keys, copied from the payload |
+| `context` | object | Your join keys: the payload's `context`, merged with your [`serverContext`](configuration.md#engine-options) values |
 
 ### Server facts
 

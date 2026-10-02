@@ -3,8 +3,8 @@
 import { gzipSync } from 'node:zlib';
 import { build } from 'esbuild';
 
-// 8.5 KB: raised from 8 KB when the no_browser_ui headless check was added (see docs/operations/performance.md).
-const CORE_BUDGET = 8704;
+// 9 KB: raised from 8 KB as headless, graphics and tamper checks were added (see docs/operations/performance.md).
+const CORE_BUDGET = 9216;
 const INTEGRATION_BUDGET = 1024;
 const INTEGRATIONS = ['new-relic', 'datadog-rum', 'ga4', 'data-layer', 'segment', 'posthog'];
 

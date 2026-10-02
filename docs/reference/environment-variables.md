@@ -9,10 +9,6 @@ option.
 | `REALHUMAN_SECRET` | **Yes** (unless `REALHUMAN_SECRET_ARN` is used on AWS) | Engine | `secretEnv` | Signing secret: at least 32 random bytes, base64-encoded |
 | `REALHUMAN_SECRET_PREVIOUS` | Only while rotating | Engine | `previousSecretEnv` | The old secret, still accepted for verification. See [rotation](../operations/security.md#rotating-the-secret). |
 | `REALHUMAN_SECRET_ARN` | AWS only, instead of `REALHUMAN_SECRET` | AWS adapter | `secretArnEnv` | ARN of a Secrets Manager secret holding the signing secret. Set automatically by the CDK construct. |
-| `AI_GATEWAY_API_KEY` | Jev via Vercel AI Gateway, outside Vercel | Jev engine | `apiKeyEnv` | Vercel AI Gateway API key |
-| `VERCEL_OIDC_TOKEN` | No (set by Vercel) | Jev engine | – | Used automatically for AI Gateway on Vercel when no API key is set |
-| `OPENROUTER_API_KEY` | Jev via OpenRouter | Jev engine | `apiKeyEnv` | OpenRouter API key |
-| `TYPESAFE_AI_API_KEY` | Jev via TypeSafe directly | Jev engine | `apiKeyEnv` | TypeSafe AI API key |
 
 ## Generating a secret
 

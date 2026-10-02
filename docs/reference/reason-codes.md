@@ -35,7 +35,6 @@ Conclusive on their own. If any gate fires, the label is `bot` with `conclusive`
 | `nonce_expired` | Expired session token | bot | gate | The session nonce was older than its allowed lifetime. |
 | `nonce_replayed` | Replayed session token | bot | gate | The nonce was presented from a different TLS client or browser than it was issued to. |
 | `too_fast` | Manipulated clock | bot | gate | The client reported more elapsed time than had really passed since the nonce was issued, a sign of a fast-forwarded clock. |
-| `ja4_non_browser` | Non-browser connection | bot | gate | The TLS fingerprint belongs to a non-browser HTTP library while the user agent claims to be a browser. |
 | `automation_markers` | Automation framework detected | bot | gate | Globals or properties left behind by an automation framework were found. |
 | `ua_bot` | Declared bot or headless browser | bot | gate | The user agent openly identifies itself as a bot, crawler, HTTP library or headless browser. |
 
@@ -51,6 +50,7 @@ What the browser says about itself, and whether that story is consistent.
 | `ua_client_hints_mismatch` | Inconsistent user agent | bot | 2.5 | The user-agent string disagrees with the browser’s User-Agent Client Hints. |
 | `worker_mismatch` | Spoofed browser properties | bot | 3 | Browser properties differ between the page and a Web Worker, a sign of spoofing. |
 | `feature_mismatch` | Features don't match browser version | bot | 2 | The browser lacks features its claimed version should have. |
+| `renderer_platform_mismatch` | Graphics don't match operating system | bot | 3 | The graphics stack belongs to a different operating system than the browser claims, for example Linux graphics on a browser claiming to be Windows. Typical of server-hosted bots in disguise. |
 | `native_tamper` | Browser internals modified | bot | 2.5 | Built-in browser functions have been overwritten. |
 | `privacy_browser` | Privacy-hardened browser | neutral | – | A privacy-hardened browser was detected. Consistency penalties are switched off for this session. |
 
@@ -60,6 +60,7 @@ Evidence from the TLS connection and HTTP headers, read at the edge.
 
 | Code | Title | Lean | Weight | Meaning |
 |---|---|---|---|---|
+| `ja4_non_browser` | Non-browser connection | bot | 3, or 4.5 if listed in `ja4.nonBrowser` | The TLS connection offered no application protocol (ALPN) at all, as HTTP libraries do, while the user agent claims to be a browser. A company proxy that re-encrypts traffic can cause this too, so it is weighted evidence rather than a gate. |
 | `ua_ja4_mismatch` | Connection doesn't match browser | bot | 3 | The TLS fingerprint does not match the browser family in the user agent. |
 | `sec_fetch_missing` | Missing browser headers | bot | 2 | Fetch metadata headers (Sec-Fetch-*) that this browser always sends were missing. |
 | `timezone_mismatch` | Time zone mismatch | bot | 0.5 | The browser’s time zone differs from the time zone of its IP address. VPN users also trigger this, so it is weighted lightly. |
@@ -90,8 +91,6 @@ How the decision was produced.
 | Code | Title | Lean | Weight | Meaning |
 |---|---|---|---|---|
 | `no_js` | No JavaScript | neutral | – | The client never ran the browser SDK. Only network evidence was available. |
-| `jev_decision` | Decided by Jev | neutral | – | The score was produced by the Jev engine. |
-| `jev_unavailable` | Jev unavailable | neutral | – | The Jev engine timed out or returned an error, so the algorithmic engine scored this session. |
 
 <!-- generated:end -->
 

@@ -42,8 +42,7 @@ realhuman/
 │   ├── engine/          @realhuman/engine: scoring engine and re-scoring CLI
 │   ├── vercel/          @realhuman/vercel: Vercel / Next.js adapter
 │   ├── aws/             @realhuman/aws: Lambda handler and CDK construct
-│   ├── node/            @realhuman/node: self-hosted adapter
-│   └── jev/             @realhuman/jev: optional Jev engine
+│   └── node/            @realhuman/node: self-hosted adapter
 ├── apps/demo/           local demo site (pnpm --filter @realhuman/demo start)
 ├── apps/vercel-demo/    hostable Next.js demo that also collects labelled test sessions
 ├── tools/bot-lab/       runs automation stacks against a demo (pnpm --filter @realhuman/bot-lab lab)

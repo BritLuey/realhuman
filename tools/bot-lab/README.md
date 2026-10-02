@@ -45,9 +45,10 @@ too, so you can run `pnpm --filter @realhuman/eval report -- ../bot-lab/results/
 
 ## Latest local results
 
-5 sessions per scenario (`--repeat=5`): **50 of 55 scored as bot**. Every commodity and stealth scenario was
-caught 5 of 5, and `humanlike-headless` 5 of 5. `humanlike-advanced` scored `uncertain` 4 times and passed as
-human once.
+5 sessions per scenario (`--repeat=5`): **50 of 55 labelled `bot`**. Every commodity and stealth scenario was
+labelled `bot` 5 of 5, and so was `humanlike-headless`. `humanlike-advanced` was labelled `suspicious` 5 of 5,
+from its headless traits (`no_browser_ui`, `viewport_is_screen`); none passed as `human` or `unverified`. So the
+standard filter (`label <> 'bot'`) removes 50 of the 55 sessions, and the strict filter removes all 55.
 
 ## What the lab can't tell you
 

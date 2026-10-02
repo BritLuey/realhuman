@@ -62,6 +62,22 @@ export function findings(result) {
       'No labelled human sessions: the false-positive rate cannot be measured. Collect human sessions before relying on these results.',
     );
   }
+  const worst = result.byBrowser.humans
+    .filter((g) => g.strictRemoved.k > 0)
+    .sort((a, b) => b.strictRemoved.rate - a.strictRemoved.rate || b.n - a.n)[0];
+  if (worst) {
+    lines.push(
+      `Most affected browser: ${worst.group}, where the strict filter removes ${worst.strictRemoved.k} of ${worst.n} human sessions (${pct(worst.strictRemoved.rate)}). Check this group before relying on the strict filter.`,
+    );
+  }
+  const labelled = humans.n + bots.n;
+  const noJa4 = result.availability.find((a) => a.check === 'TLS fingerprint (JA4)');
+  const missingJa4 = noJa4 ? noJa4.humans.missing + noJa4.bots.missing : 0;
+  if (missingJa4 > 0) {
+    lines.push(
+      `${missingJa4} of ${labelled} labelled sessions had no TLS fingerprint (JA4), so the network checks didn't run for them.`,
+    );
+  }
   if (result.auc !== null) {
     lines.push(
       `AUC ${result.auc.toFixed(3)}: a randomly chosen human outscores a randomly chosen bot ${pct(result.auc)} of the time (1.0 = perfect separation, 0.5 = chance).`,
@@ -191,6 +207,36 @@ export function renderHtml(result, meta) {
       <tr><th></th><th>Sessions</th><th>human</th><th>unverified</th><th>suspicious</th><th>bot</th><th>verified agent</th></tr>
       ${labelRow('Known humans', humans.n, result.labels.human)}
       ${labelRow('Known bots', bots.n, result.labels.bot)}
+    </table>
+  </section>
+
+  <section>
+    <h2>Known humans by browser</h2>
+    <p class="muted">False positives hide in less common setups. Check every row, not just the total.</p>
+    <table>
+      <tr><th>Browser / platform</th><th>Sessions</th><th>human</th><th>unverified</th><th>suspicious</th><th>bot</th><th>Removed by standard</th><th>Removed by strict</th></tr>
+      ${
+        result.byBrowser.humans
+          .map(
+            (g) =>
+              `<tr><td>${esc(g.group)}</td><td>${g.n}</td><td>${g.labels.human}</td><td>${g.labels.unverified}</td><td>${g.labels.suspicious}</td><td>${g.labels.bot}</td><td>${pct(g.standardRemoved?.rate ?? null)}</td><td>${pct(g.strictRemoved?.rate ?? null)}</td></tr>`,
+          )
+          .join('') || '<tr><td colspan="8" class="muted">No human sessions.</td></tr>'
+      }
+    </table>
+  </section>
+
+  <section>
+    <h2>Data availability</h2>
+    <p class="muted">How often each check had no data. Missing data counts as no evidence, never as bot evidence, but a check that's usually missing for your audience can't help much.</p>
+    <table>
+      <tr><th>Check</th><th>Missing for known humans</th><th>Missing for known bots</th></tr>
+      ${result.availability
+        .map(
+          (a) =>
+            `<tr><td>${esc(a.check)}</td><td>${a.humans.n ? `${a.humans.missing} of ${a.humans.n} (${pct(a.humans.missing / a.humans.n, 0)})` : '–'}</td><td>${a.bots.n ? `${a.bots.missing} of ${a.bots.n} (${pct(a.bots.missing / a.bots.n, 0)})` : '–'}</td></tr>`,
+        )
+        .join('')}
     </table>
   </section>
 

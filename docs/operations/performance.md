@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > The browser budgets are enforced on every build: `packages/client/scripts/bundle.mjs` fails the build if a
-> bundle exceeds its budget. At the time of writing the core SDK is 8,271 bytes gzipped and each integration
+> bundle exceeds its budget. At the time of writing the core SDK is 8,822 bytes gzipped and each integration
 > 181–316 bytes. Server figures are design targets.
 
 realHuman must never be the reason a page feels slow.
@@ -11,7 +11,7 @@ realHuman must never be the reason a page feels slow.
 
 | Budget | Target | How |
 |---|---|---|
-| SDK size, core | **≤ 8.5 KB** gzipped | No dependencies; tree-shakeable collectors |
+| SDK size, core | **≤ 9 KB** gzipped | No dependencies; tree-shakeable collectors |
 | Each integration | ≤ 1 KB gzipped | Separate entry points, so only what you import is bundled |
 | Main-thread time per input event | ≤ 0.1 ms average | Passive listeners write to fixed-size ring buffers |
 | Long tasks caused by the SDK | **None** (> 50 ms) | Statistics are computed in `requestIdleCallback` |
@@ -25,7 +25,6 @@ realHuman must never be the reason a page feels slow.
 |---|---|
 | `init` endpoint | < 2 ms CPU |
 | Algorithmic scoring | < 5 ms CPU at p99 |
-| Jev scoring | 70–500 ms typical, hard cap `timeoutMs` (default 800 ms) |
 | Response time in `server` mode | Independent of the engine; scoring runs after the response |
 | Memory | Stateless: no per-session memory between requests |
 

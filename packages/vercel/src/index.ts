@@ -64,7 +64,7 @@ export function createHandlers(options: EngineOptions = {}): RealHumanHandlers {
 }
 
 export interface TagRequestsOptions
-  extends Pick<EngineOptions, 'thresholds' | 'ja4' | 'webBotAuth' | 'logger' | 'debug' | 'now'> {
+  extends Pick<EngineOptions, 'ja4' | 'webBotAuth' | 'logger' | 'debug' | 'now'> {
   /** Receives a network-only label for every tagged request. */
   readonly onTag: (tag: EdgeTag) => void | Promise<void>;
   /**

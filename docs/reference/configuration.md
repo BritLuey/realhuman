@@ -8,7 +8,6 @@ Every option, with its type and default. If you only change a few things, the
 - [Vercel adapter](#vercel-adapter) (`@realhuman/vercel`)
 - [AWS adapter](#aws-adapter) (`@realhuman/aws`)
 - [Node adapter](#node-adapter) (`@realhuman/node`)
-- [Jev engine](#jev-engine) (`@realhuman/jev`)
 
 ---
 
@@ -22,7 +21,7 @@ Every option, with its type and default. If you only change a few things, the
 | `flushAfterMs` | `number` | `1000` | Milliseconds after `init()` before the first update is sent. Allowed range: 250–60000. |
 | `sendOnPageHide` | `boolean` | `true` | Send a final update when the page is hidden or closed. |
 | `consent` | `boolean` | `true` | When `false`, nothing is collected or sent until `grantConsent()` is called. |
-| `context` | `Record<string, string>` or `() => Record<string, string>` | `{}` | Your own join keys, copied into decision records. At most 10 keys; values at most 256 characters. A function is called when each update is sent. |
+| `context` | `Record<string, string>` or `() => Record<string, string>` | `{}` | Your own join keys, copied into decision records. At most 10 keys; values at most 256 characters. A function is called when each update is sent. Change values later with `rh.setContext()`; see [Attaching a user id](../guides/filtering-your-data.md#attaching-a-user-id). |
 | `honeypot` | `false` or [`HoneypotOptions`](#honeypotoptions) | see below | Honeypot settings. `false` turns honeypots off. |
 | `collectors` | `{ pointer?, keyboard?, touch?, scroll?, environment?, timing?: boolean }` | all `true` | Turn individual signal groups off. |
 | `integrations` | `Integration[]` | `[]` | Frontend integrations. See [Frontend integrations](../guides/frontend-integrations.md). |
@@ -58,20 +57,18 @@ and `createWebHandler` (Node).
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `engine` | `'algorithmic'` or a `jev(…)` engine | `'algorithmic'` | Who makes the decision. See [Jev engine](../guides/jev-engine.md). |
-| `shadow` | `'algorithmic'` or a `jev(…)` engine | none | Run a second engine and store its answer in `record.shadow`. See [Shadow mode](../guides/shadow-mode.md). |
 | `deliver` | `'server'` \| `'client'` \| `'both'` | `'server'` | Who receives results. See [Delivery modes](../guides/delivery-modes.md). |
 | `clientFields` | `Array<'realHuman' \| 'label' \| 'verdict' \| 'kind' \| 'confidence'>` | `['realHuman', 'label', 'verdict', 'confidence']` | Fields the browser may receive. `sid` and `seq` are always included. Reason codes, evidence levels and `primaryReason` can never be exposed. |
 | `onDecision` | `(record: DecisionRecord) => void \| Promise<void>` | none | Receives every decision. On Vercel and Node.js it runs after the response is sent; on AWS Lambda it finishes before the response is returned, because Lambda pauses as soon as it responds. A warning is logged at start-up if `deliver` includes `server` and this is missing. |
 | `onDecisionTimeoutMs` | `number` | `10000` | Maximum time `onDecision` may run before it is abandoned (and logged). |
-| `thresholds` | `{ human: number; bot: number }` | `{ human: 0.7, bot: 0.3 }` | Only used with a model engine such as Jev: a model probability at or below `bot` makes the label `bot`, and one at or above `human` turns `unverified` into `human`. Labels from the algorithmic engine come from evidence levels, not thresholds; see [Understanding results](../guides/understanding-results.md). |
+| `serverContext` | `(request: Request) => Record<string, string \| null> \| undefined`, or a promise of one | none | Adds trusted values worked out on your server, such as the signed-in user's id, to each record's `context`. Every key it returns replaces the browser's value, even when it's `null`. If it throws, the record has no context. See [Attaching a user id](../guides/filtering-your-data.md#attaching-a-user-id). |
 | `secretEnv` | `string` | `'REALHUMAN_SECRET'` | **Name** of the environment variable holding the signing secret (at least 32 random bytes, base64). |
 | `previousSecretEnv` | `string` | `'REALHUMAN_SECRET_PREVIOUS'` | **Name** of the variable holding the previous secret during [rotation](../operations/security.md#rotating-the-secret). Optional. |
 | `nonceTtlMs` | `number` | `900000` (15 min) | How long a session nonce is valid. The SDK refreshes it automatically on long-lived pages. |
 | `maxPayloadBytes` | `number` | `16384` | Larger request bodies are rejected with 413. |
 | `allowedOrigins` | `string[]` | `[]` (same origin only) | Extra origins allowed to call the endpoint (CORS). Only needed if the endpoint is on a different domain. |
 | `webBotAuth` | `{ agents?: string[]; authority?: string; fetch?: typeof fetch }` | `{ agents: [] }` (off) | Verify [Web Bot Auth](../glossary.md#web-bot-auth) signatures from the agent origins you list (for example `['https://chatgpt.com']`) and label them `verified_agent`. Only listed agents' key directories are ever fetched. Set `authority` to your public host name if a CDN rewrites the `Host` header (CloudFront → Lambda). |
-| `ja4` | `{ browser?: string[]; nonBrowser?: string[] }` | `{}` | Exact JA4 values you know to be real browsers (never flagged) or non-browser clients (always gated). |
+| `ja4` | `{ browser?: string[]; nonBrowser?: string[] }` | `{}` | Exact JA4 values you know to be real browsers (never flagged) or non-browser clients (strong bot evidence on their own). |
 | `env` | `(name: string) => string \| undefined` | the adapter's default | How environment variables are read. Override for custom secret stores. |
 | `logger` | `{ debug, info, warn, error }` | `console` | Where realHuman writes its own logs. |
 | `debug` | `boolean` | `false` | Verbose logging, including reasons, on the server. |
@@ -100,7 +97,7 @@ Headers read automatically:
 | `sec-fetch-site`, `sec-fetch-mode`, `sec-fetch-dest` | Browser | Fetch metadata |
 | `signature`, `signature-input`, `signature-agent` | AI agents | Web Bot Auth |
 
-`onDecision` and shadow engines run through `waitUntil`, after the response is sent.
+`onDecision` runs through `waitUntil`, after the response is sent.
 
 ### `tagRequests(options)`
 
@@ -142,8 +139,8 @@ browser and Web Bot Auth headers listed under the [Vercel adapter](#createhandle
 | `secret` | `secretsmanager.ISecret` | required | The signing secret. The construct grants read access and sets `REALHUMAN_SECRET_ARN`. |
 | `pathPattern` | `string` | `'/api/realhuman/*'` | Cache behaviour path. Must match the SDK's `endpoint`. |
 | `memorySize` | `number` | `256` | Lambda memory (MB). |
-| `timeout` | `Duration` | `Duration.seconds(5)` | Lambda timeout. Raise it if `onDecision` or Jev needs longer. |
-| `environment` | `Record<string, string>` | `{}` | Extra environment variables (for example `AI_GATEWAY_API_KEY` references). |
+| `timeout` | `Duration` | `Duration.seconds(5)` | Lambda timeout. Raise it if `onDecision` needs longer. |
+| `environment` | `Record<string, string>` | `{}` | Extra environment variables, for example settings your `onDecision` code needs. |
 | `headers` | `string[]` | 9 headers (see the [CloudFront quickstart](../getting-started/quickstart-cloudfront.md#step-3-option-b-set-it-up-by-hand)) | Headers forwarded by the origin request policy. Never include `Host`. |
 | `webBotAuth` | `boolean` | `false` | Also forward `Signature`, `Signature-Input`, `Signature-Agent` (12 headers: needs a CloudFront quota increase). |
 | `handler` | `string` | `'handler'` | Exported handler name in `entry`. |
@@ -173,19 +170,3 @@ Both take the [engine options](#engine-options) plus:
 
 Both handlers have a `drain()` method that resolves once in-flight background work (such as `onDecision`) has finished. Call it on shutdown.
 
----
-
-## Jev engine
-
-`jev(options)` from `@realhuman/jev`. Pass the result as `engine` or `shadow`. Full guide: [Jev engine](../guides/jev-engine.md).
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `provider` | `'vercel-ai-gateway'` \| `'openrouter'` \| `'typesafe'` \| `'ai-sdk'` \| `JevProvider` | required | Where Jev is called. |
-| `apiKeyEnv` | `string` | per provider: `AI_GATEWAY_API_KEY`, `OPENROUTER_API_KEY`, `TYPESAFE_AI_API_KEY` | **Name** of the environment variable holding the API key. Ignored for `'ai-sdk'`. For Vercel AI Gateway, falls back to `VERCEL_OIDC_TOKEN`. |
-| `model` | `string` or AI SDK model | per provider: `typesafe-ai/jev`, `typesafe/jev-latest`, `jev-latest` | Model id. |
-| `timeoutMs` | `number` | `800` | After this, the algorithmic engine answers (`engine: "algorithmic-fallback"`). |
-| `failover` | `Array<{ provider, apiKeyEnv?, model?, baseUrl? }>` | `[]` | Providers to try, in order, on 402, 429, 5xx or network errors. All share `timeoutMs`. `'ai-sdk'` isn't allowed here. |
-| `zeroDataRetention` | `boolean` | `true` | Ask Vercel AI Gateway (native or via `'ai-sdk'`) to route only to zero-data-retention providers. Not sent to OpenRouter or TypeSafe. |
-| `fetch` | `typeof fetch` | global `fetch` | Override fetch, for proxies and tests. |
-| `baseUrl` | `string` | provider default | Override the API base URL, for example to go through a corporate proxy. |

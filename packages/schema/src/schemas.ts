@@ -57,6 +57,11 @@ export const EnvironmentSignalsSchema = v.object({
   /** null when the Worker check could not run (for example blocked by CSP). */
   workerMismatch: v.nullable(v.boolean()),
   featureMismatch: v.nullable(v.boolean()),
+  /**
+   * Does the graphics stack belong to a different operating system than the browser claims?
+   * null when unknown (no WebGL, masked renderer, software rendering). Optional for older SDKs.
+   */
+  rendererPlatformMismatch: v.optional(v.nullable(v.boolean())),
   nativeTamper: v.boolean(),
   privacyBrowser: v.nullable(v.picklist(PRIVACY_BROWSERS)),
   /** IANA time zone name, for example "Europe/London". */
@@ -209,14 +214,6 @@ export const ServerFactsSchema = v.object({
   verifiedAgent: v.nullable(v.pipe(v.string(), v.maxLength(128))),
 });
 
-export const ShadowResultSchema = v.object({
-  engine: v.picklist(ENGINES),
-  realHuman: ratio,
-  label: v.optional(v.picklist(LABELS)),
-  verdict: v.picklist(VERDICTS),
-  reasons: v.array(v.picklist(REASON_CODES)),
-});
-
 export const DecisionRecordSchema = v.object({
   v: v.literal(SCHEMA_VERSION),
   sid: SessionIdSchema,
@@ -239,11 +236,6 @@ export const DecisionRecordSchema = v.object({
   reasons: v.array(v.picklist(REASON_CODES)),
   engine: v.picklist(ENGINES),
   engineVersion: v.pipe(v.string(), v.maxLength(32)),
-  model: v.optional(v.pipe(v.string(), v.maxLength(128))),
-  provider: v.optional(v.pipe(v.string(), v.maxLength(64))),
-  questionsVersion: v.optional(v.pipe(v.string(), v.maxLength(32))),
-  /** Present when shadow mode ran a second engine on the same session. */
-  shadow: v.optional(ShadowResultSchema),
   server: ServerFactsSchema,
   /** null for sessions that never ran the browser SDK (kind: "no_js"). */
   signals: v.nullable(SignalsSchema),
@@ -267,5 +259,4 @@ export type InitResponse = v.InferOutput<typeof InitResponseSchema>;
 export type Payload = v.InferOutput<typeof PayloadSchema>;
 export type ClientResult = v.InferOutput<typeof ClientResultSchema>;
 export type ServerFacts = v.InferOutput<typeof ServerFactsSchema>;
-export type ShadowResult = v.InferOutput<typeof ShadowResultSchema>;
 export type DecisionRecord = v.InferOutput<typeof DecisionRecordSchema>;

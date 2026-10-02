@@ -9,11 +9,11 @@ Two numbers matter, and you need both:
 
 | Number | Question it answers | Good looks like |
 |---|---|---|
-| **Detection rate** | Of sessions you *know* are bots, how many were scored as bots? | High, broken down by bot type |
-| **False-positive rate** | Of sessions you *know* are human, how many were wrongly scored as bots? | Very low |
+| **Detection rate** | Of sessions you *know* are bots, how many does your filter remove? | High, broken down by bot type |
+| **False-positive rate** | Of sessions you *know* are human, how many does your filter wrongly remove? | Very low, in every browser |
 
-A third number helps with tuning: the **confirmed-human rate**, meaning how many real people scored
-`human` rather than `uncertain`.
+A third number helps with tuning: the **confirmed-human rate**, meaning how many real people were labelled
+`human` rather than `unverified`.
 
 Any detector can score 100% on one of these by giving up the other: flag everyone, or flag no one. That's
 why a bot lab run on its own proves nothing about real people. You need labelled human sessions too.
@@ -80,6 +80,14 @@ Optionally add `&participant=p01` and so on, so you can follow up on odd results
 - [ ] A corporate network or VPN
 - [ ] An older or slower device
 - [ ] Someone who just glances at the page and leaves (short sessions are real too)
+- [ ] Private or incognito windows, in each main browser
+- [ ] Privacy extensions: an ad blocker such as uBlock Origin, and a fingerprint-protection extension such as
+  CanvasBlocker
+- [ ] A remote or virtual desktop (Citrix, Windows 365, Azure Virtual Desktop, VMware Horizon) and a virtual
+  machine: these often draw graphics in software, like servers do
+- [ ] Hardware acceleration switched off in the browser's settings, which also falls back to software graphics
+- [ ] Full-screen (F11) and kiosk mode, and your site installed as an app if you offer that: no visible browser
+  UI is normal there
 
 Only send the `truth=human` link to people you trust to be human. The results are only as good as that
 ground truth.
@@ -120,6 +128,10 @@ This prints the findings and writes `eval-report.html`, a self-contained page yo
   (`label IN ('human', 'unverified')`) filters remove, with confidence intervals. These are the numbers that
   matter for your reporting
 - **Results by label** for known humans and known bots
+- **Known humans by browser:** labels and filter removals for each browser, platform and privacy browser. A
+  small group with a high removal rate is where false positives hide, even when the total looks fine
+- **Data availability:** how often each check had no data (no TLS fingerprint, no Web Worker, no graphics
+  details, no interaction) for humans and bots, so you can see which checks can actually help your audience
 - **ROC curve:** the trade-off between catching bots and flagging humans at every threshold
 - **Score distribution:** humans versus bots
 - **Per-scenario results**, by label
@@ -133,17 +145,20 @@ To try other thresholds without changing anything in production: `--human=0.8 --
 This is real output from a local run (55 bot sessions, 5 per scenario, no human sessions yet):
 
 ```
-• Of 55 automated sessions, 50 (90.9%, 95% CI 80.4%–96.1%) were scored as bots (realHuman ≤ 0.3), and 1 passed as human.
-• No labelled human sessions: the false-positive rate cannot be measured.
+• Standard filter (exclude label 'bot'): removes 50 of 55 bots, 90.9% (95% CI 80.4%–96.1%).
+• Strict filter (keep only 'human' and 'unverified'): removes 55 of 55 bots, 100.0% (95% CI 93.5%–100.0%).
+• No labelled human sessions: the false-positive rate cannot be measured. Collect human sessions before relying on these results.
+• 40 of 55 labelled sessions had no TLS fingerprint (JA4), so the network checks didn't run for them.
 
-  humanlike-advanced           0/5 caught · 4 uncertain · 1 passed as human
-  humanlike-headless           5/5 caught
-  (all 9 other scenarios)      5/5 caught each
+  humanlike-advanced           0/5 bot · 5 suspicious · 0 unverified · 0 human
+  humanlike-headless           5/5 bot · 0 suspicious · 0 unverified · 0 human
+  (all 9 other scenarios)      5/5 bot each
 ```
 
-What it tells you: commodity and stealth automation is caught every time. A purpose-built bot with human-like
-movement and hidden headless markers usually lands in `uncertain` and sometimes passes. That's the honest limit
-of signals a browser can observe.
+What it tells you: commodity and stealth automation is labelled `bot` every time. A purpose-built bot with
+human-like movement and hidden headless traits lands in `suspicious`, so only the strict filter removes it.
+That's the honest limit of what a browser reveals. The missing TLS fingerprints are expected locally, where no
+CDN adds one to browser sessions; it's one more reason to test on a deployed demo.
 
 ## Step 6: Tune, then confirm on fresh data
 
@@ -169,15 +184,16 @@ Lab and tester results are a good start, but your real visitors are the final te
   certainly human. Traffic from data-centre networks, or requests marked `ua_bot`, are almost certainly bots.
 - Compare their scores using the same report. Records just need `context.truth` set, so add it in your pipeline
   before running the tool.
-- When changing engines or weights, use [shadow mode](shadow-mode.md) to compare old and new on the same traffic.
+- When changing weights, re-score a stored sample with `realhuman-rescore` (see step 6) and compare the label
+  counts before and after.
 
 ## What to publish
 
-A fair statement includes the run id, the date, the sample sizes, the thresholds and both rates, for example:
+A fair statement includes the run id, the date, the sample sizes, the filter and both rates, for example:
 
 > On run `pilot-2` (2026-11-03): 412 human sessions from 38 testers across 9 browser/device types, and 220 bot
-> sessions across 11 scenarios. At the default thresholds, 0 human sessions were scored as bots (false-positive
-> rate below 0.73% at 95% confidence), and 196 of 220 bot sessions (89.1%, 95% CI 84.3%–92.6%) were scored as
-> bots, including 100% of commodity automation.
+> sessions across 11 scenarios. The standard filter (`label <> 'bot'`) removed 0 human sessions (false-positive
+> rate below 0.73% at 95% confidence, and no browser group above 0) and 196 of 220 bot sessions (89.1%, 95% CI
+> 84.3%–92.6%), including 100% of commodity automation.
 
 The figures above are illustrative: always quote your own report.

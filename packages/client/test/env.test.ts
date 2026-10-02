@@ -4,12 +4,15 @@ import {
   automationMarkers,
   clientHintsMismatch,
   featureMismatch,
+  graphicsPlatform,
   headlessMarkers,
+  isNativeFunction,
   isSoftwareRenderer,
   NEUTRAL_ENV,
   nativeTamper,
   parseUa,
   probeEnvironment,
+  rendererPlatformMismatch,
   timerGranularity,
 } from '../src/signals/env.js';
 import { scope } from '../src/util.js';
@@ -194,17 +197,31 @@ describe('nativeTamper', () => {
     }
   }
 
-  // happy-dom's Navigator is written in JavaScript, so borrow a real native getter.
-  const nativeGetter = Object.getOwnPropertyDescriptor(Map.prototype, 'size')?.get;
-  const nativeProto = Object.defineProperty({}, 'userAgent', { get: nativeGetter as () => number });
+  // happy-dom's Navigator is written in JavaScript, so borrow a real native getter: Map's `size`.
+  const nativeGetter = Object.getOwnPropertyDescriptor(Map.prototype, 'size')?.get as () => number;
+  const nativeOwner = Object.defineProperty({}, 'size', { get: nativeGetter });
+  const target = (owner: object) => [{ owner, names: ['size'] }];
 
   it('is false for native getters', () => {
-    expect(nativeTamper({}, nativeProto)).toBe(false);
+    expect(nativeTamper({}, target(nativeOwner))).toBe(false);
+    expect(nativeTamper({}, target(nativeOwner), true)).toBe(false);
   });
 
   it('catches own properties on navigator and patched getters', () => {
-    expect(nativeTamper({ webdriver: false }, nativeProto)).toBe(true);
-    expect(nativeTamper({}, FakeNavigator.prototype)).toBe(true);
+    expect(nativeTamper({ webdriver: false }, target(nativeOwner))).toBe(true);
+    expect(nativeTamper({}, [{ owner: FakeNavigator.prototype, names: ['userAgent'] }])).toBe(true);
+  });
+
+  it('catches Proxy-wrapped getters on Chromium, where native sources carry their name', () => {
+    const wrapped = Object.defineProperty({}, 'size', { get: new Proxy(nativeGetter, {}) });
+    // Without the name check, a Proxy passes as native…
+    expect(nativeTamper({}, target(wrapped), false)).toBe(false);
+    // …with it, the nameless "function () { [native code] }" gives it away.
+    expect(nativeTamper({}, target(wrapped), true)).toBe(true);
+  });
+
+  it('skips owners that are missing', () => {
+    expect(nativeTamper({}, [{ owner: undefined, names: ['width'] }])).toBe(false);
   });
 
   it('catches a replaced Function.prototype.toString', () => {
@@ -214,10 +231,60 @@ describe('nativeTamper', () => {
       return 'function () {}';
     };
     try {
-      expect(nativeTamper({}, {})).toBe(true);
+      expect(nativeTamper({}, [])).toBe(true);
     } finally {
       Function.prototype.toString = original;
     }
+  });
+});
+
+describe('isNativeFunction', () => {
+  it('requires the name only when asked', () => {
+    const getter = Object.getOwnPropertyDescriptor(Map.prototype, 'size')?.get;
+    expect(isNativeFunction(getter, 'size', true)).toBe(true);
+    expect(isNativeFunction(getter, 'webdriver', true)).toBe(false);
+    expect(isNativeFunction(getter, 'webdriver', false)).toBe(true);
+    expect(isNativeFunction(() => 1, 'x', false)).toBe(false);
+    expect(isNativeFunction('not a function', 'x', false)).toBe(false);
+  });
+});
+
+describe('graphics vs operating system', () => {
+  const WINDOWS_GPU =
+    'ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti Laptop GPU (0x00002F58) Direct3D11 vs_5_0 ps_5_0, D3D11)';
+  const MAC_GPU = 'ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)';
+  const LINUX_GPU = 'Mesa Intel(R) UHD Graphics 620 (KBL GT2)';
+  const SERVER_GPU = 'llvmpipe (LLVM 15.0.7, 256 bits)';
+  const SWIFTSHADER =
+    'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)';
+
+  it('reads the operating system from the graphics stack', () => {
+    expect(graphicsPlatform(WINDOWS_GPU)).toBe('Windows');
+    expect(graphicsPlatform(MAC_GPU)).toBe('Apple');
+    expect(graphicsPlatform('Apple GPU')).toBe('Apple');
+    expect(graphicsPlatform(LINUX_GPU)).toBe('Linux');
+    expect(graphicsPlatform(SERVER_GPU)).toBe('Linux');
+    expect(graphicsPlatform(SWIFTSHADER)).toBeNull();
+    expect(graphicsPlatform('Mozilla')).toBeNull();
+  });
+
+  it('flags a graphics stack from a different operating system', () => {
+    expect(rendererPlatformMismatch(SERVER_GPU, 'Windows')).toBe(true);
+    expect(rendererPlatformMismatch(LINUX_GPU, 'macOS')).toBe(true);
+    expect(rendererPlatformMismatch(WINDOWS_GPU, 'macOS')).toBe(true);
+    expect(rendererPlatformMismatch(MAC_GPU, 'Windows')).toBe(true);
+  });
+
+  it('accepts matching stacks and stays silent when unsure', () => {
+    expect(rendererPlatformMismatch(WINDOWS_GPU, 'Windows')).toBe(false);
+    expect(rendererPlatformMismatch(MAC_GPU, 'macOS')).toBe(false);
+    expect(rendererPlatformMismatch('Apple GPU', 'macOS')).toBe(false); // iOS reports macOS here
+    expect(rendererPlatformMismatch(LINUX_GPU, 'Linux')).toBe(false);
+    expect(rendererPlatformMismatch(LINUX_GPU, 'Chrome OS')).toBe(false);
+    expect(rendererPlatformMismatch(LINUX_GPU, 'Android')).toBe(false);
+    expect(rendererPlatformMismatch(SWIFTSHADER, 'Windows')).toBeNull();
+    expect(rendererPlatformMismatch(null, 'Windows')).toBeNull();
+    expect(rendererPlatformMismatch(WINDOWS_GPU, '')).toBeNull();
   });
 });
 

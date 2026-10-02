@@ -1,6 +1,6 @@
 import type { ReasonCode, ServerFacts, Signals } from '@realhuman/schema';
 import { assessJa4, type Ja4Lists, parseJa4 } from './ja4.js';
-import type { Analysis, Evidence, EvidenceGroup } from './scorer.js';
+import type { Analysis, Evidence, EvidenceGroup } from './types.js';
 import { expectsFetchMetadata, isBrowserFamily } from './ua.js';
 
 export interface AnalysisInput {
@@ -30,6 +30,9 @@ export const WEIGHTS = {
   worker_mismatch: -3,
   feature_mismatch: -2,
   native_tamper: -2.5,
+  renderer_platform_mismatch: -3,
+  ja4_non_browser: -3,
+  ja4KnownNonBrowser: -4.5,
   ua_ja4_mismatch: -3,
   sec_fetch_missing: -2,
   timezone_mismatch: -0.5,
@@ -52,6 +55,7 @@ const PRIVACY_SUPPRESSED: ReadonlySet<ReasonCode> = new Set([
   'feature_mismatch',
   'native_tamper',
   'software_renderer',
+  'renderer_platform_mismatch',
   'timezone_mismatch',
   'headless_markers',
 ]);
@@ -80,8 +84,14 @@ export function analyze(input: AnalysisInput): Analysis {
 
   const ja4 = parseJa4(server.ja4);
   const ja4Assessment = assessJa4(ja4, claimsBrowser, input.ja4Lists);
-  if (ja4Assessment === 'non_browser') gates.add('ja4_non_browser');
-  else if (ja4Assessment === 'mismatch') add('ua_ja4_mismatch', 'network', WEIGHTS.ua_ja4_mismatch);
+  // Weighted rather than gated: a company proxy that re-encrypts traffic can look like this.
+  if (ja4Assessment === 'non_browser') add('ja4_non_browser', 'network', WEIGHTS.ja4_non_browser);
+  // A fingerprint you listed as non-browser is strong evidence on its own.
+  else if (ja4Assessment === 'known_non_browser') {
+    add('ja4_non_browser', 'network', WEIGHTS.ja4KnownNonBrowser);
+  } else if (ja4Assessment === 'mismatch') {
+    add('ua_ja4_mismatch', 'network', WEIGHTS.ua_ja4_mismatch);
+  }
 
   if (
     claimsBrowser &&
@@ -114,6 +124,9 @@ export function analyze(input: AnalysisInput): Analysis {
     }
     if (env.workerMismatch) add('worker_mismatch', 'environment', WEIGHTS.worker_mismatch);
     if (env.featureMismatch) add('feature_mismatch', 'environment', WEIGHTS.feature_mismatch);
+    if (env.rendererPlatformMismatch) {
+      add('renderer_platform_mismatch', 'environment', WEIGHTS.renderer_platform_mismatch);
+    }
     if (env.nativeTamper) add('native_tamper', 'environment', WEIGHTS.native_tamper);
   }
   // Embedded browsers (desktop apps, iOS/Android in-app browsers) report a zero outer window size

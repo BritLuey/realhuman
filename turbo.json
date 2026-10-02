@@ -1,15 +1,6 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalPassThroughEnv": [
-    "REALHUMAN_*",
-    "DEMO_ADMIN_TOKEN",
-    "KV_*",
-    "UPSTASH_*",
-    "REDIS_URL",
-    "AI_GATEWAY_API_KEY",
-    "OPENROUTER_API_KEY",
-    "TYPESAFE_AI_API_KEY"
-  ],
+  "globalPassThroughEnv": ["REALHUMAN_*", "DEMO_ADMIN_TOKEN", "KV_*", "UPSTASH_*", "REDIS_URL"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

@@ -39,6 +39,73 @@ event containing the `sid`, label and score into your analytics tool. You can th
 inside the analytics tool directly. Remember that browser-side copies can be tampered with; the backend record is
 the source of truth.
 
+### Attaching a user id
+
+To store the label against a user in your own data table, attach their id to the decision record. There are
+two ways, and you can use both.
+
+**From the browser**, for example once the visitor signs in on a page that's already loaded:
+
+```ts
+const rh = init();
+
+// later, once you know who it is
+rh.setContext({ userId: user.id });
+await rh.score(); // optional: send an update with the id straight away
+```
+
+`setContext` adds to the `context` option; set a key to `null` to remove it. Without `score()`, the id goes
+with the next update, usually the final one as the page closes.
+
+**From your server**, when the id comes from your own session or sign-in cookie. Use this whenever you act on
+the id, because a visitor can change anything their browser sends:
+
+```ts
+export const { GET, POST } = createHandlers({
+  serverContext: async (request) => ({
+    userId: (await getSession(request))?.userId ?? null, // null when signed out
+  }),
+  onDecision: saveDecision, // for example the PostgreSQL upsert from Ingesting decisions
+});
+```
+
+Either way, the id arrives in the record's `context`. With the table from
+[Ingesting decisions](ingesting-decisions.md#postgresql), which keeps the latest update of each page load, you
+can then copy each user's most recent label onto your own users table:
+
+```sql
+UPDATE users
+SET bot_label = latest.label
+FROM (
+  SELECT DISTINCT ON (context->>'userId') context->>'userId' AS user_id, label
+  FROM realhuman_decisions
+  WHERE context ? 'userId'
+  ORDER BY context->>'userId', ts DESC
+) AS latest
+WHERE users.id::text = latest.user_id;
+```
+
+Writing to the users table straight from `onDecision` works too, but a page load sends several updates that
+can arrive out of order, so check `seq` (as the upsert does) before overwriting.
+
+How `serverContext` works:
+
+- It runs on your server for each decision record and receives the request (headers and cookies; the body
+  has already been read). Keep it fast.
+- **Every key it returns is the server's.** The browser's value for that key is dropped, even when the server
+  returns `null` or `undefined`, so a signed-out visitor can't forge a `userId`. Keys it doesn't return are
+  left to the browser.
+- If it throws, the error is logged and that record has no context at all, so a forged value can't slip
+  through while your session store is down.
+- Numbers and booleans are turned into strings. Entries that break the limits below are skipped with a warning.
+
+Both share the `context` limits: at most 10 keys (`A–Z a–z 0–9 _ . -`, up to 64 characters) and values up to
+256 characters.
+
+> [!NOTE]
+> A user id turns decision records into personal data about that user. See
+> [Privacy & compliance](../operations/privacy-and-compliance.md#your-own-ids-in-context).
+
 ## Step 2: Choose a filter
 
 | Label | Standard filter | Strict filter | Why |

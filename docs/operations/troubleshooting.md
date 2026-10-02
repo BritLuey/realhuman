@@ -77,8 +77,12 @@ check is skipped and nothing breaks.
 3. Remember that events recorded before the first score (~1 s) won't carry it. See
    [Frontend integrations](../guides/frontend-integrations.md).
 
-### Jev records always say `algorithmic-fallback`
+### `context` is missing values or empty
 
-- The API key variable named in `apiKeyEnv` is missing or wrong. Check the server logs.
-- `timeoutMs` is too low for your region; try 1500.
-- Your provider is rate-limiting you (429); add a `failover` provider.
+- Values must be strings of up to 256 characters, with at most 10 keys named with `A–Z a–z 0–9 _ . -`.
+  The browser SDK skips other entries silently; the server logs a warning for each `serverContext` entry it
+  skips.
+- A key your `serverContext` returns always replaces the browser's value, even when the server's value is
+  `null`.
+- If every record has an empty `context`, `serverContext` is probably throwing; look for
+  `serverContext failed` in the server logs.

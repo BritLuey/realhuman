@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   analyze,
   assessJa4,
+  decide,
   deriveServerFacts,
   parseJa4,
   parseUserAgent,
   resolveOptions,
-  scoreAlgorithmically,
   timezonesMatch,
 } from '../src/index.js';
 import { issueNonce, verifyNonce } from '../src/nonce.js';
@@ -193,7 +193,7 @@ describe('JA4', () => {
       'unknown',
     );
     expect(assessJa4(parseJa4(CHROME_JA4), true, { browser: [], nonBrowser: [CHROME_JA4] })).toBe(
-      'non_browser',
+      'known_non_browser',
     );
   });
 });
@@ -261,7 +261,7 @@ describe('analysis and algorithmic scoring', () => {
   it('scores natural behaviour in a consistent browser as human', () => {
     const analysis = analyze({ signals: humanSignals(), server, ja4Lists: noLists });
     expect(analysis.gates).toEqual([]);
-    const result = scoreAlgorithmically(analysis);
+    const result = decide(analysis);
     expect(result.realHuman).toBeGreaterThanOrEqual(0.9);
     expect(result.kind).toBe('human');
     expect(result.reasons).toEqual(
@@ -272,7 +272,7 @@ describe('analysis and algorithmic scoring', () => {
 
   it('scores an automated headless browser as a bot', () => {
     const analysis = analyze({ signals: botSignals(), server, ja4Lists: noLists });
-    const result = scoreAlgorithmically(analysis);
+    const result = decide(analysis);
     expect(result.realHuman).toBeLessThan(0.05);
     expect(result.kind).toBe('automation');
     expect(result.reasons).toEqual(
@@ -286,9 +286,7 @@ describe('analysis and algorithmic scoring', () => {
   });
 
   it('treats no interaction as low confidence, not as bot evidence', () => {
-    const result = scoreAlgorithmically(
-      analyze({ signals: idleSignals(), server, ja4Lists: noLists }),
-    );
+    const result = decide(analyze({ signals: idleSignals(), server, ja4Lists: noLists }));
     expect(result.realHuman).toBeGreaterThan(0.5);
     expect(result.confidence).toBeLessThan(0.5);
     expect(result.reasons).toContain('no_interaction');
@@ -314,7 +312,7 @@ describe('analysis and algorithmic scoring', () => {
     expect(codes).not.toContain('native_tamper');
     expect(codes).not.toContain('worker_mismatch');
     expect(codes).not.toContain('timezone_mismatch');
-    const result = scoreAlgorithmically(analysis);
+    const result = decide(analysis);
     expect(result.kind).toBe('privacy_browser');
     expect(result.reasons).toContain('privacy_browser');
   });
@@ -334,10 +332,10 @@ describe('analysis and algorithmic scoring', () => {
       .reduce((sum, e) => sum + e.weight, 0);
     expect(envTotal).toBeLessThan(-6);
     // Capped at -6 for environment + -5 for behaviour + prior 0.4 → sigmoid(-10.6)
-    expect(scoreAlgorithmically(analysis).realHuman).toBeCloseTo(0, 3);
+    expect(decide(analysis).realHuman).toBeCloseTo(0, 3);
   });
 
-  it('gates honeypots, automation markers, declared bots and non-browser TLS', () => {
+  it('gates honeypots, automation markers and declared bots, but not a missing ALPN', () => {
     const signals = humanSignals();
     const honeypot = signals.honeypot;
     if (!honeypot) throw new Error('fixture');
@@ -364,7 +362,7 @@ describe('analysis and algorithmic scoring', () => {
         server: { ...server, ja4: 't13d171500_5b57614c22b0_3d5424432f57' },
         ja4Lists: noLists,
       }).gates,
-    ).toEqual(['ja4_non_browser']);
+    ).toEqual([]); // no ALPN is weighted evidence now, not a gate (company proxies)
   });
 
   it('flags missing fetch metadata for modern browsers only', () => {
@@ -386,36 +384,105 @@ describe('analysis and algorithmic scoring', () => {
 describe('resolveOptions', () => {
   it('validates configuration', () => {
     expect(() => resolveOptions({ deliver: 'nowhere' as never })).toThrow(TypeError);
-    expect(() => resolveOptions({ thresholds: { human: 0.2, bot: 0.4 } })).toThrow(TypeError);
     expect(() => resolveOptions({ clientFields: ['reasons' as never] })).toThrow(TypeError);
     expect(() => resolveOptions({ nonceTtlMs: -1 })).toThrow(TypeError);
-    expect(() => resolveOptions({ engine: 'magic' as never })).toThrow(TypeError);
+    expect(() => resolveOptions({ serverContext: 'nope' as never })).toThrow(TypeError);
   });
 });
 
 describe('verified agents', () => {
-  it('are labelled without calling an external scorer', async () => {
-    const { decideWith, vi } = {
-      ...(await import('../src/index.js')),
-      vi: (await import('vitest')).vi,
-    };
-    const score = vi.fn();
+  it('are labelled verified_agent with the signature as the main reason', () => {
     const server = deriveServerFacts(
       browserHeaders(),
       { ja4: CHROME_JA4, ipTimezone: null },
       null,
       'agent.example',
     );
-    const analysis = analyze({ signals: humanSignals(), server, ja4Lists: noLists });
-    const options = resolveOptions({ logger: silentLogger, onDecision: () => {} });
-    const decision = await decideWith({ name: 'jev', score }, analysis, options);
-    expect(score).not.toHaveBeenCalled();
+    const decision = decide(analyze({ signals: humanSignals(), server, ja4Lists: noLists }));
     expect(decision).toMatchObject({
+      label: 'verified_agent',
       verdict: 'verified_agent',
       kind: 'verified_agent',
+      primaryReason: 'verified_agent_signature',
       engine: 'algorithmic',
     });
-    expect(decision.reasons).toContain('verified_agent_signature');
+  });
+});
+
+describe('JA4 without ALPN', () => {
+  const server = deriveServerFacts(
+    browserHeaders(),
+    { ja4: CHROME_JA4, ipTimezone: null },
+    null,
+    null,
+  );
+  const noAlpn = { ...server, ja4: 't13d171500_5b57614c22b0_3d5424432f57' };
+
+  it('is weighted evidence, not a gate, so a proxied person is only suspicious', () => {
+    const decision = decide(
+      analyze({ signals: humanSignals(), server: noAlpn, ja4Lists: noLists }),
+    );
+    expect(decision).toMatchObject({
+      label: 'suspicious',
+      botEvidence: 'moderate',
+      engine: 'algorithmic',
+    });
+  });
+
+  it('is still a bot together with other evidence, such as missing browser headers', () => {
+    const decision = decide(
+      analyze({
+        signals: humanSignals(),
+        server: { ...noAlpn, secFetchPresent: false },
+        ja4Lists: noLists,
+      }),
+    );
+    expect(decision).toMatchObject({ label: 'bot', botEvidence: 'strong' });
+  });
+
+  it('is strong on its own when you listed the fingerprint as non-browser', () => {
+    const decision = decide(
+      analyze({
+        signals: humanSignals(),
+        server,
+        ja4Lists: { browser: [], nonBrowser: [CHROME_JA4] },
+      }),
+    );
+    expect(decision).toMatchObject({
+      label: 'bot',
+      botEvidence: 'strong',
+      primaryReason: 'ja4_non_browser',
+    });
+  });
+});
+
+describe('graphics vs operating system', () => {
+  const server = deriveServerFacts(
+    browserHeaders(),
+    { ja4: CHROME_JA4, ipTimezone: null },
+    null,
+    null,
+  );
+  const mismatched = () => {
+    const signals = humanSignals();
+    return { ...signals, env: { ...signals.env, rendererPlatformMismatch: true } };
+  };
+
+  it('is moderate evidence on its own', () => {
+    expect(decide(analyze({ signals: mismatched(), server, ja4Lists: noLists }))).toMatchObject({
+      label: 'suspicious',
+      primaryReason: 'renderer_platform_mismatch',
+    });
+  });
+
+  it('is ignored for privacy browsers', () => {
+    const signals = mismatched();
+    const analysis = analyze({
+      signals: { ...signals, env: { ...signals.env, privacyBrowser: 'brave' } },
+      server,
+      ja4Lists: noLists,
+    });
+    expect(analysis.evidence.map((e) => e.code)).not.toContain('renderer_platform_mismatch');
   });
 });
 
@@ -432,9 +499,7 @@ describe('embedded browsers', () => {
   };
 
   it('treat a zero outer window size as weak evidence on desktop', () => {
-    const result = scoreAlgorithmically(
-      analyze({ signals: withZeroOuter(), server, ja4Lists: noLists }),
-    );
+    const result = decide(analyze({ signals: withZeroOuter(), server, ja4Lists: noLists }));
     // Uncertain at worst, never pushed towards bot by this marker alone.
     expect(result.realHuman).toBeGreaterThan(0.45);
   });

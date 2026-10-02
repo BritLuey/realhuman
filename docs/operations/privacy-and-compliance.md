@@ -18,7 +18,7 @@ it's designed to minimise privacy impact.
 | Does it read what people type? | **No.** Only timing and key *class* (character, editing, navigation, modifier). |
 | Does it record mouse positions? | **No.** Positions are used in the browser to compute statistics, then discarded. |
 | Does it fingerprint devices (canvas, audio, fonts, GPU)? | **No.** Device details are reduced to yes/no answers. |
-| Does data leave your infrastructure? | **Only with the [Jev engine](#jev-engine)**, which sends signal summaries to your chosen AI provider. |
+| Does data leave your infrastructure? | **No.** Everything runs in your own hosting. Nothing is sent to us or to any third party. |
 | Who is the controller of the data? | **You.** realHuman is software you run; we receive nothing. |
 
 ## What is processed
@@ -68,22 +68,19 @@ analytics data to clean.
 Before `grantConsent()` the SDK collects nothing, adds no listeners, makes no requests and injects no
 honeypots.
 
-## Jev engine
+## Your own ids in `context`
 
-With `engine: jev(…)` (or Jev as a `shadow` engine), signal summaries, network consistency results and
-JA4 parts are sent to:
+Decision records carry no identifier unless you add one. If you attach your own ids through `context`, from
+the browser (`context`, `setContext`) or your server (`serverContext`), each record is linked to whatever
+those ids identify. An analytics client id links it to a browser; a user id makes it personal data about
+that user.
 
-- **TypeSafe AI**, which operates Jev, and
-- **Vercel** (if using AI Gateway) or **OpenRouter** (if using OpenRouter), which sit in between.
+That's usually fine for cleaning analytics, but:
 
-**Not sent:** IP addresses, raw user agents, your `context` join keys, or any content.
-
-Before enabling Jev:
-
-- [ ] Add the providers to your record of processing and subprocessor list
-- [ ] Check each provider's data processing agreement and data-transfer terms
-- [ ] Keep `zeroDataRetention: true` (the default), which asks Vercel AI Gateway to route only to providers that don't retain request data
-- [ ] Update your privacy notice if it lists the processors you use
+- [ ] List the ids you attach in your record of processing and DPIA
+- [ ] Prefer pseudonymous ids (an internal user id or analytics client id) over email addresses or names
+- [ ] Give records the same retention and access rules as the data they link to
+- [ ] Include them when you delete or export a person's data on request
 
 ## Retention
 
@@ -101,9 +98,9 @@ Points to cover in a Data Protection Impact Assessment:
 - [ ] **Legal basis** for the processing (often legitimate interests, or consent together with analytics)
 - [ ] **Device access** under ePrivacy / PECR (see [above](#consent-and-the-eprivacy-directive))
 - [ ] **Data minimisation:** summaries only, no content, no storage, no persistent ids (this page)
-- [ ] **Join keys** placed in `context`, and what they link to
-- [ ] **Recipients:** your pipeline; plus Jev providers if enabled
-- [ ] **International transfers:** where your hosting and Jev providers process data
+- [ ] **Join keys** placed in `context` (for example a user id), and what they link to
+- [ ] **Recipients:** your own pipeline and storage only
+- [ ] **International transfers:** where your hosting provider processes data
 - [ ] **Retention** periods for decision records
 - [ ] **Automated decision-making:** realHuman labels analytics data and doesn't make decisions with legal or similarly significant effects on individuals. Re-assess if you start using scores for anything else, such as blocking or pricing.
 
@@ -112,7 +109,7 @@ Points to cover in a Data Protection Impact Assessment:
 The honeypots are hidden from screen readers and keyboard navigation (`inert`, `aria-hidden`,
 `tabindex="-1"`), so they don't affect people who use assistive technology. Because realHuman never blocks,
 people whose interaction looks unusual, for example switch-access users, are never locked out. At worst
-their sessions are labelled `uncertain`.
+their sessions are labelled `unverified` or `suspicious`, which the standard filter keeps.
 
 ## Third-party licences
 

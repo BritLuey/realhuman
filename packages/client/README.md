@@ -5,7 +5,7 @@ only: it never blocks anyone.**
 
 It collects short summaries of how the page is used (never key values, form contents, coordinates or
 device fingerprints), stores nothing on the device, and sends the summaries to **your own server**, which
-runs the realHuman engine. Under 8 KB gzipped, with no dependencies.
+runs the realHuman engine. Under 9 KB gzipped, with no dependencies.
 
 ## Install
 
@@ -46,8 +46,14 @@ onConsentGranted(() => rh.grantConsent());
 rh.attach(document.querySelector('form#signup') as HTMLFormElement);
 
 // Receive results in the browser (needs deliver: 'client' or 'both' on the server).
-rh.on('result', (result) => console.log(result.realHuman, result.verdict));
+rh.on('result', (result) => console.log(result.label, result.realHuman));
+
+// Attach your own ids to later records, for example once the visitor signs in. null removes a key.
+rh.setContext({ userId: user.id });
 ```
+
+Anything the browser sends can be changed by the visitor. If you act on an id, set it on the server with
+`serverContext` instead; see [Attaching a user id](../../docs/guides/filtering-your-data.md#attaching-a-user-id).
 
 ## Integrations
 

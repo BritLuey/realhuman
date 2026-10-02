@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { findings, renderHtml } from '../html.js';
 import {
   auc,
   evaluate,
@@ -160,4 +161,64 @@ test('ground truth comes from context.truth, with context.label as the older spe
   assert.equal(result.humans.n, 1);
   assert.equal(result.bots.n, 1);
   assert.equal(truthOf({ context: { truth: 'bot', label: 'human' } }), 'bot');
+});
+
+test('humans are broken down by browser, and missing data is counted', () => {
+  const session = (sid, family, platform, label, extra = {}) => ({
+    ...rec(sid, 'human', 0.5),
+    label,
+    server: {
+      uaFamily: family,
+      platform,
+      ja4: 't13d1516h2_8daaf6152771_02713d6af862',
+      clientHintsPresent: true,
+    },
+    signals: {
+      env: { privacyBrowser: null, softwareRenderer: false, timezone: 'UTC' },
+      pointer: { events: 20 },
+      keyboard: null,
+      touch: null,
+      scroll: null,
+    },
+    ...extra,
+  });
+  const result = evaluate([
+    session('a', 'chrome', 'windows', 'human'),
+    session('b', 'chrome', 'windows', 'suspicious'),
+    session('c', 'firefox', 'linux', 'unverified'),
+    {
+      ...session('d', 'firefox', 'linux', 'human'),
+      signals: { ...session('x', '', '', '').signals, env: { privacyBrowser: 'firefox_rfp' } },
+    },
+  ]);
+  const groups = Object.fromEntries(result.byBrowser.humans.map((g) => [g.group, g]));
+  assert.equal(groups['chrome / windows'].n, 2);
+  assert.equal(groups['chrome / windows'].strictRemoved.k, 1);
+  assert.equal(groups['chrome / windows'].standardRemoved.k, 0);
+  assert.equal(groups['firefox / linux'].n, 1);
+  assert.equal(groups['firefox / linux (firefox_rfp)'].n, 1);
+  const typing = result.availability.find((a) => a.check === 'Typing');
+  assert.deepEqual(typing.humans, { missing: 4, n: 4 });
+  const ja4 = result.availability.find((a) => a.check === 'TLS fingerprint (JA4)');
+  assert.equal(ja4.humans.missing, 0);
+});
+
+test('findings name the most affected browser and missing TLS fingerprints', () => {
+  const human = (sid, family, label, ja4 = 't13d1516h2_8daaf6152771_02713d6af862') => ({
+    ...rec(sid, 'human', 0.5),
+    label,
+    server: { uaFamily: family, platform: 'windows', ja4 },
+    signals: null,
+  });
+  const result = evaluate([
+    human('a', 'chrome', 'human'),
+    human('b', 'edge', 'suspicious', null),
+    human('c', 'edge', 'human'),
+  ]);
+  const lines = findings(result);
+  assert.ok(lines.some((l) => l.startsWith('Most affected browser: edge / windows')));
+  assert.ok(lines.some((l) => l.startsWith('1 of 3 labelled sessions had no TLS fingerprint')));
+  const html = renderHtml(result, { generatedAt: 'now', source: 'test' });
+  assert.match(html, /Known humans by browser/);
+  assert.match(html, /Data availability/);
 });

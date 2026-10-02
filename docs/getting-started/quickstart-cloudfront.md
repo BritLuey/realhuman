@@ -180,7 +180,7 @@ recheck step 3. Other problems: [Troubleshooting](../operations/troubleshooting.
 | Send results to S3, Redshift, Snowflake or BigQuery | Use Kinesis Data Firehose in `onDecision`. See [Ingesting decisions](../guides/ingesting-decisions.md) |
 | Show the score to New Relic, Datadog or GA4 | Set `deliver: 'both'`. See [Frontend integrations](../guides/frontend-integrations.md) |
 | Add honeypots to your forms | [Honeypots](../guides/honeypots.md) |
-| Use the Jev engine | [Jev engine](../guides/jev-engine.md) |
+| Attach a user id to each record | [Attaching a user id](../guides/filtering-your-data.md#attaching-a-user-id) |
 
 > [!NOTE]
 > **Why not Lambda@Edge?** It can't use environment variables, must be deployed in `us-east-1`, and takes longer

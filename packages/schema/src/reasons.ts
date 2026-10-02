@@ -64,13 +64,6 @@ export const REASONS = {
     description:
       'The client reported more elapsed time than had really passed since the nonce was issued, a sign of a fast-forwarded clock.',
   },
-  ja4_non_browser: {
-    title: 'Non-browser connection',
-    group: 'gate',
-    lean: 'bot',
-    description:
-      'The TLS fingerprint belongs to a non-browser HTTP library while the user agent claims to be a browser.',
-  },
   automation_markers: {
     title: 'Automation framework detected',
     group: 'gate',
@@ -123,6 +116,13 @@ export const REASONS = {
     lean: 'bot',
     description: 'The browser lacks features its claimed version should have.',
   },
+  renderer_platform_mismatch: {
+    title: "Graphics don't match operating system",
+    group: 'environment',
+    lean: 'bot',
+    description:
+      'The graphics stack belongs to a different operating system than the browser claims, for example Linux graphics on a browser claiming to be Windows. Typical of server-hosted bots in disguise.',
+  },
   native_tamper: {
     title: 'Browser internals modified',
     group: 'environment',
@@ -138,6 +138,13 @@ export const REASONS = {
   },
 
   // Network: evidence from the TLS connection and HTTP headers, read at the edge.
+  ja4_non_browser: {
+    title: 'Non-browser connection',
+    group: 'network',
+    lean: 'bot',
+    description:
+      'The TLS connection offered no application protocol (ALPN) at all, as HTTP libraries do, while the user agent claims to be a browser. A company proxy that re-encrypts traffic can cause this too, so it is weighted evidence rather than a gate.',
+  },
   ua_ja4_mismatch: {
     title: "Connection doesn't match browser",
     group: 'network',
@@ -240,19 +247,6 @@ export const REASONS = {
     group: 'engine',
     lean: 'neutral',
     description: 'The client never ran the browser SDK. Only network evidence was available.',
-  },
-  jev_decision: {
-    title: 'Decided by Jev',
-    group: 'engine',
-    lean: 'neutral',
-    description: 'The score was produced by the Jev engine.',
-  },
-  jev_unavailable: {
-    title: 'Jev unavailable',
-    group: 'engine',
-    lean: 'neutral',
-    description:
-      'The Jev engine timed out or returned an error, so the algorithmic engine scored this session.',
   },
 } as const satisfies Record<string, ReasonInfo>;
 

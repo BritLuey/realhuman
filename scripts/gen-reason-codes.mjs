@@ -14,6 +14,9 @@ function weightOf(code, info) {
   if (code === 'headless_markers') {
     return `${fmt(WEIGHTS.headlessPerMarker)} per trait (${fmt(WEIGHTS.noBrowserUi)} for \`no_browser_ui\`, ${fmt(WEIGHTS.zeroOuterSize)} for \`zero_outer_size\`), at most ${fmt(WEIGHTS.headlessMax)}`;
   }
+  if (code === 'ja4_non_browser') {
+    return `${fmt(WEIGHTS.ja4_non_browser)}, or ${fmt(WEIGHTS.ja4KnownNonBrowser)} if listed in \`ja4.nonBrowser\``;
+  }
   const weight = WEIGHTS[code];
   return typeof weight === 'number' ? fmt(weight) : '–';
 }

@@ -7,10 +7,6 @@ The small package that connects the realHuman engine to your hosting platform: `
 `@realhuman/aws` or `@realhuman/node`. It reads the platform's trusted headers and handles the platform's
 request format.
 
-### AI Gateway (Vercel)
-Vercel's service for calling AI models from many providers through one API and one bill. One of the ways
-to reach [Jev](#jev).
-
 ### Bot
 Any automated program that loads web pages: scrapers, crawlers, monitors, test scripts, fraud tools and
 AI agents.
@@ -38,8 +34,9 @@ A number from 0 to 1 that says how much evidence a decision was based on. It's l
 the visitor hasn't interacted. It is separate from the score: a session can be "probably human, low confidence".
 
 ### Context
-Your own join keys (for example an analytics client id) that you ask the SDK to copy into decision
-records, so you can connect them to other data.
+Your own values copied into decision records, such as an analytics client id or a user id, so you can
+connect records to other data. Set in the browser (`context`, `setContext`) or on your server
+(`serverContext`). See [Attaching a user id](guides/filtering-your-data.md#attaching-a-user-id).
 
 ### Decision record
 The full result of one update, sent to your backend through `onDecision`. See
@@ -52,7 +49,9 @@ Who receives results: `server` (your backend), `client` (the browser) or `both`.
 The CDN servers closest to the visitor, where requests first arrive.
 
 ### Engine
-The component that works out the score: `algorithmic` (built-in rules) or `jev` (TypeSafe AI's model).
+The part of realHuman that turns signals and network evidence into a label, evidence levels, a score and
+reasons. A record's `engine` field says which stage decided: `gate` (a conclusive check) or `algorithmic`
+(weighted evidence).
 
 ### Fail open
 If something goes wrong, carry on as if nothing happened rather than breaking. realHuman fails open
@@ -91,10 +90,6 @@ in what order, and so on. Every build of Chrome produces the same JA4, so it doe
 Python script claiming to be Chrome, however, produces a different one. Computed by your CDN, not by
 the browser. Created by FoxIO.
 
-### Jev
-A *System One model* from TypeSafe AI. Instead of writing text, it answers typed questions with
-probabilities, quickly and cheaply. realHuman can use it as its engine. See [Jev engine](guides/jev-engine.md).
-
 ### Kind
 A finer description of what's driving a session: `human`, `privacy_browser`, `automation`, `scraper`,
 `ai_agent`, `verified_agent`, `no_js` or `unknown`.
@@ -115,9 +110,6 @@ reject anything that didn't come through your distribution.
 
 ### onDecision
 The function you provide to receive decision records on your backend.
-
-### OpenRouter
-A service that gives access to many AI models through one API. One of the ways to reach [Jev](#jev).
 
 ### Origin
 The server behind your CDN that actually handles the request, such as your app or a Lambda function.
@@ -142,20 +134,12 @@ Filter on the [label](#label) instead.
 ### seq
 The update number within one page load: `0` for the first, then `1`, `2`… The highest is the latest.
 
-### Shadow mode
-Running a second engine alongside the main one and recording its answer without using it. Used to compare
-engines safely. See [Shadow mode](guides/shadow-mode.md).
-
 ### sid
 The session id: random, one per page load, never stored on the device.
 
 ### Signals
 The summaries the browser SDK collects, such as pointer movement statistics.
 See [Signals](reference/signals.md).
-
-### System One model
-TypeSafe AI's name for models built to make fast, structured decisions inside software, as opposed to chat
-models that write text.
 
 ### TLS
 The encryption behind HTTPS. Its handshake is where the [JA4](#ja4) fingerprint comes from.

@@ -26,8 +26,8 @@ Every payload, response and record carries `"v": 1`, which is versioned **separa
   accept the previous `v` for at least one major version, so browser and server can be upgraded
   independently.
 
-Decision records also carry `engineVersion` (and `questionsVersion` for Jev), so you can always tell which
-logic produced a score.
+Decision records also carry `engineVersion`, so you can always tell which logic produced a label, and
+re-score old records with `realhuman-rescore` when the rules change.
 
 ## Supported platforms
 

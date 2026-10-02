@@ -8,14 +8,13 @@ import {
   type ReasonCode,
   SCHEMA_VERSION,
   type ServerFacts,
-  type ShadowResult,
   type Signals,
   type Verdict,
 } from '@realhuman/schema';
-import { algorithmicScorer } from './algorithmic.js';
 import { analyze } from './analysis.js';
+import { mergeContext } from './context.js';
 import { randomId } from './crypto.js';
-import { type Decision, decideWith, toShadow } from './decide.js';
+import { type Decision, decide } from './decide.js';
 import { deriveServerFacts, type TrustedFacts } from './facts.js';
 import { type ClientBinding, issueNonce, verifyNonce } from './nonce.js';
 import { type EngineOptions, type ResolvedOptions, resolveOptions } from './options.js';
@@ -104,7 +103,7 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
   async function emit(record: DecisionRecord): Promise<void> {
     if (options.debug) {
       options.logger.debug(
-        `[realhuman] ${record.sid}#${record.seq} ${record.verdict} ${record.realHuman} (${record.engine}) ${record.reasons.join(',')}`,
+        `[realhuman] ${record.sid}#${record.seq} ${record.label} ${record.realHuman} (${record.engine}) ${record.reasons.join(',')}`,
       );
     }
     const onDecision = options.onDecision;
@@ -132,7 +131,6 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
     seq: number;
     final: boolean;
     decision: Decision;
-    shadow?: ShadowResult;
     server: ServerFacts;
     signals: Signals | null;
     context: Context;
@@ -155,12 +153,6 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
       reasons: decision.reasons,
       engine: decision.engine,
       engineVersion: VERSION,
-      ...(decision.model !== undefined && { model: decision.model }),
-      ...(decision.provider !== undefined && { provider: decision.provider }),
-      ...(decision.questionsVersion !== undefined && {
-        questionsVersion: decision.questionsVersion,
-      }),
-      ...(args.shadow !== undefined && { shadow: args.shadow }),
       server: args.server,
       signals: args.signals,
       context: args.context,
@@ -204,6 +196,18 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
     if (body === null) return new Response(null, { status, headers });
     headers['content-type'] = 'application/json; charset=utf-8';
     return new Response(JSON.stringify(body), { status, headers });
+  }
+
+  /** The record's context: what the browser sent, plus trusted values from serverContext. */
+  async function contextFor(request: Request, browser: Context): Promise<Context> {
+    if (!options.serverContext) return browser;
+    try {
+      return mergeContext(browser, await options.serverContext(request), options.logger);
+    } catch (error) {
+      // Without the server's answer, a browser value can't be told apart from a forged one.
+      options.logger.error('[realhuman] serverContext failed; this record has no context', error);
+      return {};
+    }
   }
 
   function bindingOf(request: Request, trusted: TrustedFacts): ClientBinding {
@@ -299,32 +303,24 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
       uaHeadless: parseUserAgent(request.headers.get('user-agent')).headless,
     });
 
-    const record = async (decision: Decision): Promise<DecisionRecord> => {
-      const shadow = options.shadow
-        ? toShadow(await decideWith(options.shadow, analysis, options))
-        : undefined;
-      return buildRecord({
+    const decision = decide(analysis);
+    const record = async (): Promise<DecisionRecord> =>
+      buildRecord({
         sid: payload.sid,
         seq: payload.seq,
         final: payload.final,
         decision,
-        ...(shadow !== undefined && { shadow }),
         server,
         signals: payload.signals,
-        context: payload.context,
+        context: await contextFor(request, payload.context),
       });
-    };
 
     if (options.deliver === 'server') {
-      await background(ctx, async () =>
-        emit(await record(await decideWith(options.engine, analysis, options))),
-      );
+      await background(ctx, async () => emit(await record()));
       return respond(204, null, cors);
     }
-
-    const decision = await decideWith(options.engine, analysis, options);
     if (options.deliver === 'both') {
-      await background(ctx, async () => emit(await record(decision)));
+      await background(ctx, async () => emit(await record()));
     }
     return respond(200, clientResult(payload.sid, payload.seq, decision), cors);
   }
@@ -350,7 +346,7 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
             gates: ['honeypot_trap_followed'],
             ja4Lists: options.ja4,
           });
-          const decision = await decideWith(options.engine, analysis, options);
+          const decision = decide(analysis);
           const reasons = decision.reasons.filter((code) => code !== 'no_js');
           await emit(
             buildRecord({
@@ -360,7 +356,7 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
               decision: { ...decision, reasons },
               server,
               signals: null,
-              context: {},
+              context: await contextFor(request, {}),
             }),
           );
         });
@@ -412,7 +408,7 @@ export function createRealHuman(input: EngineOptions = {}): RealHuman {
         ja4Lists: options.ja4,
         uaHeadless: parseUserAgent(request.headers.get('user-agent')).headless,
       });
-      const decision = await decideWith(algorithmicScorer, analysis, options);
+      const decision = decide(analysis);
       return {
         ts: new Date(now).toISOString(),
         path: new URL(request.url).pathname,

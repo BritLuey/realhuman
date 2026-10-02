@@ -43,7 +43,7 @@ export interface RealHumanEndpointProps {
   readonly pathPattern?: string;
   /** Lambda memory in MB. Default 256. */
   readonly memorySize?: number;
-  /** Lambda timeout. Default 5 seconds. Raise it if `onDecision` or Jev needs longer. */
+  /** Lambda timeout. Default 5 seconds. Raise it if `onDecision` needs longer. */
   readonly timeout?: Duration;
   /** Extra environment variables. */
   readonly environment?: Readonly<Record<string, string>>;

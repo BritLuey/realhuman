@@ -58,12 +58,11 @@ Rules for your backend:
 ## Speed
 
 - **`server` mode** answers `204`. On Vercel and Node.js it answers straight away, and scoring and your
-  `onDecision` code run *after* the response is sent, so even the slower [Jev engine](jev-engine.md) adds no
-  delay. On AWS Lambda they finish *before* the response is returned, because Lambda pauses as soon as it
-  responds. Either way, nothing on the page waits for it.
-- **`client` and `both` modes** wait for the score before responding: a few milliseconds for the algorithmic
-  engine, typically 70–500 ms for Jev (capped by `timeoutMs`). The visitor never notices, because nothing on
-  the page waits for it.
+  `onDecision` code run *after* the response is sent, so they add no delay. On AWS Lambda they finish
+  *before* the response is returned, because Lambda pauses as soon as it responds. Either way, nothing on the
+  page waits for it.
+- **`client` and `both` modes** wait for the score before responding, which takes a few milliseconds. The
+  visitor never notices, because nothing on the page waits for it.
 
 ## A word on trust
 
