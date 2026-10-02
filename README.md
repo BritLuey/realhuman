@@ -17,10 +17,11 @@ so you can filter bots out of your analytics, dashboards and reports.
 ---
 
 > [!IMPORTANT]
-> **Project status: pre-1.0.** Every package is implemented and tested (283 tests), and the [bot lab](tools/bot-lab)
-> scores all 9 of its automation scenarios as bots. The packages are not yet published to npm, and the scoring
-> weights have not yet been calibrated against real human traffic. Run [shadow mode](docs/guides/shadow-mode.md)
-> and check your own traffic before relying on thresholds. See the [roadmap](docs/roadmap.md).
+> **Project status: pre-1.0.** Every package is implemented and tested. In the [bot lab](tools/bot-lab), 50 of 55
+> automated sessions were scored as bots: every commodity and stealth technique was caught, while purpose-built
+> human-like bots mostly scored `uncertain`. The false-positive rate on real people **has not been measured yet**;
+> follow [Proving it works](docs/guides/evaluation.md) with the hostable [Vercel demo](apps/vercel-demo) to measure
+> it. The packages are not yet published to npm. See the [roadmap](docs/roadmap.md).
 
 ## What is realHuman?
 
@@ -147,7 +148,7 @@ Full walkthroughs: [Vercel](docs/getting-started/quickstart-vercel.md) · [Cloud
 | Package | What it does |
 |---|---|
 | [`@realhuman/schema`](packages/schema) | Data formats and TypeScript types shared by everything else |
-| [`@realhuman/client`](packages/client) | Browser SDK: signal collection, honeypots, sending, integrations. No runtime dependencies, about 8 KB gzipped |
+| [`@realhuman/client`](packages/client) | Browser SDK: signal collection, honeypots, sending, integrations. No runtime dependencies, about 8 KB gzipped (budget 8.5 KB) |
 | [`@realhuman/engine`](packages/engine) | Scoring engine, session tokens, decision records, re-scoring CLI |
 | [`@realhuman/vercel`](packages/vercel) | Vercel / Next.js adapter, including edge tagging |
 | [`@realhuman/aws`](packages/aws) | AWS Lambda + CloudFront adapter and CDK construct |
@@ -155,8 +156,14 @@ Full walkthroughs: [Vercel](docs/getting-started/quickstart-vercel.md) · [Cloud
 | [`@realhuman/react`](packages/react) | React provider and hook |
 | [`@realhuman/node`](packages/node) | Express, Connect, `node:http`, Hono, Bun and Deno adapter |
 
-Also in the repo: a [demo site](apps/demo) you can run locally, and the [bot lab](tools/bot-lab), which runs
-automation stacks against it.
+Also in the repo:
+
+| Folder | What it is |
+|---|---|
+| [`apps/vercel-demo`](apps/vercel-demo) | A demo you can host on Vercel in ten minutes; also collects labelled test sessions |
+| [`apps/demo`](apps/demo) | A zero-setup local demo |
+| [`tools/bot-lab`](tools/bot-lab) | Runs 11 automation techniques against a demo |
+| [`tools/eval`](tools/eval) | Turns labelled sessions into detection and false-positive rates with confidence intervals |
 
 ## Documentation
 

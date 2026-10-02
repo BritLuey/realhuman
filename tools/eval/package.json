@@ -1,0 +1,14 @@
+{
+  "name": "@realhuman/eval",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Turns labelled realHuman decision records into an evaluation report: detection rate, false-positive rate with confidence intervals, ROC curve and per-scenario results.",
+  "type": "module",
+  "bin": {
+    "realhuman-eval": "./report.js"
+  },
+  "scripts": {
+    "report": "node report.js",
+    "test": "node --test test/lib.test.js"
+  }
+}

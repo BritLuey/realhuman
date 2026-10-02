@@ -4,9 +4,10 @@
 //
 // Locally there is no CDN, so there's no JA4 fingerprint unless you send an `x-ja4` header yourself.
 import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
+import { dirname, join, normalize } from 'node:path';
 import { createNodeHandler } from '@realhuman/node';
 
 const require = createRequire(import.meta.url);
@@ -19,12 +20,16 @@ if (!process.env.REALHUMAN_SECRET) {
 
 /** Latest decision per session, newest first. */
 const decisions = new Map();
+/** Every record, for GET /export (used by the evaluation tool). */
+const log = [];
 
 const realHuman = createNodeHandler({
   deliver: 'both',
   clientFields: ['realHuman', 'verdict', 'kind', 'confidence'],
   ja4Header: process.env.DEMO_TRUST_JA4_HEADER ?? undefined,
   onDecision: (record) => {
+    log.push(record);
+    if (log.length > 50_000) log.shift();
     const previous = decisions.get(record.sid);
     if (!previous || previous.seq <= record.seq) {
       decisions.delete(record.sid);
@@ -38,6 +43,7 @@ const realHuman = createNodeHandler({
 });
 
 const sdkPath = require.resolve('@realhuman/client/realhuman.iife.js');
+const sdkDir = dirname(require.resolve('@realhuman/client'));
 
 const page = `<!doctype html>
 <html lang="en">
@@ -86,7 +92,17 @@ const page = `<!doctype html>
   </section>
   <div style="height:60vh" class="muted">Scroll space.</div>
 </main>
-<script src="/realhuman.js" data-flush-after-ms="1000" data-debug="true"></script>
+<script type="module">
+  // Labels in the URL (?label=human&run=…) are copied into each record's context for evaluation.
+  import { init } from '/sdk/index.js';
+  const params = new URLSearchParams(location.search);
+  const context = {};
+  for (const key of ['label', 'run', 'scenario', 'participant']) {
+    const value = params.get(key);
+    if (value && /^[A-Za-z0-9_.-]{1,64}$/.test(value)) context[key] = value;
+  }
+  window.realHuman = init({ debug: true, context, honeypot: { trapLink: true, agentCanary: true } });
+</script>
 <script>
   const $ = (id) => document.getElementById(id);
   window.addEventListener('realhuman:result', (event) => {
@@ -130,6 +146,22 @@ const server = createServer((req, res) => {
       'cache-control': 'no-store',
     });
     return res.end(readFileSync(sdkPath));
+  }
+  if (url.pathname.startsWith('/sdk/')) {
+    const file = normalize(join(sdkDir, url.pathname.slice('/sdk/'.length)));
+    if (!file.startsWith(sdkDir) || !file.endsWith('.js') || !existsSync(file))
+      return res.writeHead(404).end();
+    res.writeHead(200, {
+      'content-type': 'text/javascript; charset=utf-8',
+      'cache-control': 'no-store',
+    });
+    return res.end(readFileSync(file));
+  }
+  if (url.pathname === '/export') {
+    const run = url.searchParams.get('run');
+    res.writeHead(200, { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store' });
+    const lines = log.filter((r) => !run || r.context.run === run).map((r) => JSON.stringify(r));
+    return res.end(lines.length ? `${lines.join('\n')}\n` : '');
   }
   if (url.pathname === '/decisions') {
     const sid = url.searchParams.get('sid');

@@ -1,0 +1,186 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1b1f24;
+  --muted: #5b6470;
+  --bg: #fbfbfc;
+  --card: #ffffff;
+  --line: #e3e6ea;
+  --accent: #2457d6;
+  --good: #1f7a4d;
+  --bad: #b3261e;
+  --warn: #8a5a00;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e8eaed;
+    --muted: #9aa3ad;
+    --bg: #121417;
+    --card: #1b1e22;
+    --line: #2c3036;
+    --accent: #7aa2ff;
+    --good: #6fcf97;
+    --bad: #ff8a80;
+    --warn: #f2c94c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font:
+    16px / 1.55 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px 48px;
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.lead {
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+section {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+
+.callout {
+  border-color: var(--accent);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 14px;
+}
+
+.score-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.score {
+  font-size: 44px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.pill.human {
+  color: var(--good);
+  border-color: currentColor;
+}
+
+.pill.bot {
+  color: var(--bad);
+  border-color: currentColor;
+}
+
+.pill.uncertain {
+  color: var(--warn);
+  border-color: currentColor;
+}
+
+label {
+  display: block;
+  margin: 12px 0 4px;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 9px 10px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+button {
+  padding: 9px 16px;
+  font: inherit;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+code {
+  font-size: 13px;
+}
+
+.reasons {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.reasons li {
+  margin: 4px 0;
+}
+
+.reasons li.bot code {
+  color: var(--bad);
+}
+
+.reasons li.human code {
+  color: var(--good);
+}
+
+a {
+  color: var(--accent);
+}
+
+.spacer {
+  height: 40vh;
+}

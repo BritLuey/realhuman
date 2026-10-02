@@ -12,3 +12,5 @@ Thumbs.db
 .vercel/
 cdk.out/
 tools/bot-lab/results/
+.next/
+next-env.d.ts

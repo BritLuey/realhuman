@@ -420,3 +420,34 @@ describe('verified agents', () => {
     expect(decision.reasons).toContain('verified_agent_signature');
   });
 });
+
+describe('embedded browsers', () => {
+  const server = deriveServerFacts(
+    browserHeaders(),
+    { ja4: CHROME_JA4, ipTimezone: null },
+    null,
+    null,
+  );
+  const withZeroOuter = () => {
+    const signals = idleSignals();
+    return { ...signals, env: { ...signals.env, headlessMarkers: ['zero_outer_size' as const] } };
+  };
+
+  it('treat a zero outer window size as weak evidence on desktop', () => {
+    const result = scoreAlgorithmically(
+      analyze({ signals: withZeroOuter(), server, ja4Lists: noLists }),
+      thresholds,
+    );
+    // Uncertain at worst, never pushed towards bot by this marker alone.
+    expect(result.realHuman).toBeGreaterThan(0.45);
+  });
+
+  it('ignore a zero outer window size on mobile', () => {
+    const analysis = analyze({
+      signals: withZeroOuter(),
+      server: { ...server, platform: 'ios' },
+      ja4Lists: noLists,
+    });
+    expect(analysis.evidence.map((e) => e.code)).not.toContain('headless_markers');
+  });
+});

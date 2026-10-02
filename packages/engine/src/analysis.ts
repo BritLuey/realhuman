@@ -23,6 +23,7 @@ export const WEIGHTS = {
   webdriver: -4,
   headlessPerMarker: -1.2,
   headlessMax: -3,
+  zeroOuterSize: -0.4,
   software_renderer: -1.5,
   ua_client_hints_mismatch: -2.5,
   worker_mismatch: -3,
@@ -71,6 +72,10 @@ export function analyze(input: AnalysisInput): Analysis {
 
   // ── Network ────────────────────────────────────────────────────────────────
   if (server.uaFamily === 'bot') gates.add('ua_bot');
+  // No person browses with a headless user agent such as HeadlessChrome.
+  if (input.uaHeadless || input.signals?.env.headlessMarkers.includes('ua_headless')) {
+    gates.add('ua_bot');
+  }
 
   const ja4 = parseJa4(server.ja4);
   const ja4Assessment = assessJa4(ja4, claimsBrowser, input.ja4Lists);
@@ -110,12 +115,16 @@ export function analyze(input: AnalysisInput): Analysis {
     if (env.featureMismatch) add('feature_mismatch', 'environment', WEIGHTS.feature_mismatch);
     if (env.nativeTamper) add('native_tamper', 'environment', WEIGHTS.native_tamper);
   }
+  // Embedded browsers (desktop apps, iOS/Android in-app browsers) report a zero outer window size
+  // for real people, so on its own it's weak evidence, and on mobile it's ignored.
+  if (server.platform === 'ios' || server.platform === 'android')
+    headlessMarkers.delete('zero_outer_size');
   if (headlessMarkers.size > 0) {
-    add(
-      'headless_markers',
-      'environment',
-      Math.max(WEIGHTS.headlessMax, WEIGHTS.headlessPerMarker * headlessMarkers.size),
-    );
+    const strong = [...headlessMarkers].filter((marker) => marker !== 'zero_outer_size').length;
+    const weight =
+      strong * WEIGHTS.headlessPerMarker +
+      (headlessMarkers.has('zero_outer_size') ? WEIGHTS.zeroOuterSize : 0);
+    add('headless_markers', 'environment', Math.max(WEIGHTS.headlessMax, weight));
   }
 
   // ── Honeypots ─────────────────────────────────────────────────────────────

@@ -59,6 +59,7 @@ export const HEADLESS_MARKERS = [
   'missing_window_chrome',
   'permissions_inconsistent',
   'no_plugins',
+  'no_browser_ui',
 ] as const;
 export type HeadlessMarker = (typeof HEADLESS_MARKERS)[number];
 

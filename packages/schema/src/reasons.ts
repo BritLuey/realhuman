@@ -69,7 +69,8 @@ export const REASONS = {
   ua_bot: {
     group: 'gate',
     lean: 'bot',
-    description: 'The user agent openly identifies itself as a bot, crawler or HTTP library.',
+    description:
+      'The user agent openly identifies itself as a bot, crawler, HTTP library or headless browser.',
   },
 
   // Environment: what the browser says about itself, and whether that story is consistent.

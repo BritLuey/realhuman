@@ -32,7 +32,7 @@ Gates are conclusive on their own. If any gate fires, analysis stops, the score 
 | `too_fast` | bot | The client reported more elapsed time than had really passed since the nonce was issued, a sign of a fast-forwarded clock. |
 | `ja4_non_browser` | bot | The TLS fingerprint belongs to a non-browser HTTP library while the user agent claims to be a browser. |
 | `automation_markers` | bot | Globals or properties left behind by an automation framework were found. |
-| `ua_bot` | bot | The user agent openly identifies itself as a bot, crawler or HTTP library. |
+| `ua_bot` | bot | The user agent openly identifies itself as a bot, crawler, HTTP library or headless browser. |
 
 ## Environment
 

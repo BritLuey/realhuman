@@ -45,7 +45,9 @@ realhuman/
 │   ├── node/            @realhuman/node: self-hosted adapter
 │   └── jev/             @realhuman/jev: optional Jev engine
 ├── apps/demo/           local demo site (pnpm --filter @realhuman/demo start)
-├── tools/bot-lab/       runs automation stacks against the demo (pnpm --filter @realhuman/bot-lab lab)
+├── apps/vercel-demo/    hostable Next.js demo that also collects labelled test sessions
+├── tools/bot-lab/       runs automation stacks against a demo (pnpm --filter @realhuman/bot-lab lab)
+├── tools/eval/          evaluation report from labelled sessions (pnpm --filter @realhuman/eval report)
 ├── docs/                all user documentation
 └── .changeset/          pending release notes
 ```

@@ -74,6 +74,9 @@ describe('headlessMarkers', () => {
     ua: CHROME,
     outerWidth: 1280,
     outerHeight: 800,
+    innerWidth: 1280,
+    innerHeight: 690,
+    fullscreen: false,
     windowChrome: true,
     plugins: 5,
     pdfViewer: true,
@@ -94,6 +97,20 @@ describe('headlessMarkers', () => {
         plugins: 0,
       }),
     ).toEqual(['ua_headless', 'zero_outer_size', 'missing_window_chrome', 'no_plugins']);
+  });
+
+  it('flags a desktop window with no browser UI, unless it is fullscreen', () => {
+    const bare = {
+      ...real,
+      ua: CHROME,
+      outerWidth: 1280,
+      outerHeight: 720,
+      innerWidth: 1280,
+      innerHeight: 720,
+    };
+    expect(headlessMarkers(bare)).toEqual(['no_browser_ui']);
+    expect(headlessMarkers({ ...bare, fullscreen: true })).toEqual([]);
+    expect(headlessMarkers({ ...bare, ua: ANDROID, windowChrome: false })).toEqual([]);
   });
 
   it('does not flag empty plugins when the PDF viewer is disabled, or on mobile', () => {

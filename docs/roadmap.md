@@ -9,23 +9,24 @@
 | **M4: AWS adapter** | Lambda handler, Secrets Manager support, CDK construct | `@realhuman/aws` | ✅ Done |
 | **M5: Jev engine** | Jev via Vercel AI Gateway, OpenRouter, TypeSafe and the AI SDK; failover; shadow mode | `@realhuman/jev` | ✅ Done |
 | **M6: Frontend integrations** | New Relic, Datadog RUM, GA4, GTM, Segment, PostHog; React provider | `@realhuman/client`, `@realhuman/react` | ✅ Done |
-| **M7: Calibration tooling** | Bot lab, re-scoring CLI, Node adapter, demo site | `@realhuman/node`, `tools/bot-lab`, `apps/demo` | ✅ Done |
+| **M7: Calibration tooling** | Bot lab, evaluation report, re-scoring CLI, Node adapter, local and Vercel demos | `@realhuman/node`, `tools/bot-lab`, `tools/eval`, `apps/demo`, `apps/vercel-demo` | ✅ Done |
 
 ## Before 1.0
 
-Three things stand between the current code and a 1.0 release:
+Four things stand between the current code and a 1.0 release:
 
-1. **Calibrate against real human traffic.** The bot lab currently scores all 9 of its automation scenarios as
-   bots, but it can't measure *false positives*: how often real people are mistaken for bots. That needs real
-   sessions. Deploy with [shadow mode](guides/shadow-mode.md) or in `server` delivery mode, review the
-   `uncertain` and `bot` sessions from known-good traffic (staff, logged-in customers), and tune `WEIGHTS` in
-   `packages/engine/src/analysis.ts`. Then publish the false-positive rate at the default thresholds.
-2. **Verify in production environments.**
+1. **Measure the false-positive rate on real people.** The bot lab scores 50 of 55 automated sessions as bots
+   (every commodity and stealth technique), but it can't say how often real people are mistaken for bots. Follow
+   [Proving it works](guides/evaluation.md): host the [Vercel demo](../apps/vercel-demo), collect at least 300
+   labelled human sessions across devices and browsers, tune on one run, confirm on a fresh one, and publish both rates.
+2. **Close the human-like bot gap.** Purpose-built bots with human-like movement and hidden headless markers mostly
+   score `uncertain`. Investigate further environment signals in the bot lab before 1.0.
+3. **Verify in production environments.**
    - Confirm Vercel's `x-vercel-ja4-digest` and CloudFront's `CloudFront-Viewer-JA4-Fingerprint` values parse
      as standard JA4.
    - Deploy the CDK construct to a real AWS account; its permissions are checked at synth time only.
    - Confirm OpenRouter's Jev evaluation endpoint, which is currently assumed.
-3. **Publish to npm.** Claim the `@realhuman` npm scope, set up trusted publishing, and merge the first
+4. **Publish to npm.** Claim the `@realhuman` npm scope, set up trusted publishing, and merge the first
    "Version Packages" pull request.
 
 ## Ideas for later

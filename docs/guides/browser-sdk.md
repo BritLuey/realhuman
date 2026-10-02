@@ -129,7 +129,7 @@ If the trap link is enabled, it uses one non-passive click listener so it can ca
 
 - **Never throws** into your code. Errors are swallowed, or logged when `debug: true`.
 - **Never blocks** rendering, input or navigation. Listeners are passive; heavy work runs when the browser is idle.
-- **Small:** core under 8 KB gzipped, with no dependencies. See [Performance](../operations/performance.md).
+- **Small:** core about 8 KB gzipped (budget 8.5 KB), with no dependencies. See [Performance](../operations/performance.md).
 - **Stores nothing** on the device.
 - **Never mislabels idle tabs.** The final page-close update is skipped if the session nonce has already expired,
   so a tab left open for hours isn't scored as a bot.

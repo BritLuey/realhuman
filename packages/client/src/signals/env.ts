@@ -78,6 +78,10 @@ export interface HeadlessInput {
   readonly ua: string;
   readonly outerWidth: number;
   readonly outerHeight: number;
+  readonly innerWidth: number;
+  readonly innerHeight: number;
+  /** Browser fullscreen or kiosk mode, where there is legitimately no browser UI. */
+  readonly fullscreen: boolean;
   readonly windowChrome: boolean;
   readonly plugins: number;
   /** `navigator.pdfViewerEnabled`; false means plugins are legitimately empty. */
@@ -89,6 +93,15 @@ export function headlessMarkers(input: HeadlessInput): HeadlessMarker[] {
   const found: HeadlessMarker[] = [];
   if (/HeadlessChrome/.test(input.ua)) found.push('ua_headless');
   if (input.outerWidth === 0 && input.outerHeight === 0) found.push('zero_outer_size');
+  // A desktop window always has tabs and an address bar above the page, unless it's fullscreen.
+  else if (
+    !u.mobile &&
+    !input.fullscreen &&
+    input.outerWidth === input.innerWidth &&
+    input.outerHeight === input.innerHeight
+  ) {
+    found.push('no_browser_ui');
+  }
   if (u.chromium && !u.mobile && !input.windowChrome) found.push('missing_window_chrome');
   // Desktop Chromium 94+ and Firefox 99+ always list the built-in PDF viewer.
   if (
@@ -318,6 +331,10 @@ export function probeEnvironment(s: Scope): EnvProbe {
         ua,
         outerWidth: window.outerWidth,
         outerHeight: window.outerHeight,
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        fullscreen:
+          !!document.fullscreenElement || matchMedia('(display-mode: fullscreen)').matches,
         windowChrome: 'chrome' in window,
         plugins: nav.plugins?.length ?? 0,
         pdfViewer: nav.pdfViewerEnabled !== false,

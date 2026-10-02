@@ -25,6 +25,7 @@ Want to see it working first? Run the [demo site](../apps/demo) locally; it take
 | [Frontend integrations](guides/frontend-integrations.md) | Send the score to New Relic, Datadog, GA4, Segment, PostHog or GTM |
 | [Jev engine](guides/jev-engine.md) | Let TypeSafe AI's Jev model make the decision instead of the built-in rules |
 | [Shadow mode](guides/shadow-mode.md) | Compare two engines safely before switching |
+| [Proving it works](guides/evaluation.md) | Measure detection and false-positive rates with labelled humans and bots, and publish the results |
 
 ## Reference: exact details
 
