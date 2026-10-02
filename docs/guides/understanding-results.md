@@ -86,7 +86,7 @@ Each bot-leaning signal has a **weight**. The weights of all the signals seen ar
 | `sec_fetch_missing` | 2 | A modern browser didn't send the fetch-metadata headers it always sends |
 | `feature_mismatch` | 2 | The browser lacks features its claimed version has |
 | `form_too_fast` | 2 | A protected form was submitted faster than a person could fill it in |
-| `headless_markers` | 1.2 per trait; 1.6 for `no_browser_ui`; 0.4 for `zero_outer_size`; at most 3 | Traits of headless browsers. `zero_outer_size` is ignored on phones and tablets |
+| `headless_markers` | 1.2 per trait; 1.6 for `no_browser_ui`; 0.4 for `zero_outer_size`; at most 3 | Traits of headless browsers, such as a window with no browser UI (`no_browser_ui`) or a page exactly the size of the screen (`viewport_is_screen`). `zero_outer_size` is ignored on phones and tablets |
 | `software_renderer` | 1.5 | Graphics are drawn in software, as on servers, but also remote desktops and VMs |
 | `pointer_linear` | 1.5 | 10+ mouse moves, over 80% in perfectly straight lines, at near-constant speed |
 | `keyboard_uniform` | 1.5 | 8+ key presses with almost perfectly even spacing |

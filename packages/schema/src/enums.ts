@@ -80,6 +80,7 @@ export const HEADLESS_MARKERS = [
   'permissions_inconsistent',
   'no_plugins',
   'no_browser_ui',
+  'viewport_is_screen',
 ] as const;
 export type HeadlessMarker = (typeof HEADLESS_MARKERS)[number];
 

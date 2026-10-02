@@ -80,6 +80,8 @@ export interface HeadlessInput {
   readonly outerHeight: number;
   readonly innerWidth: number;
   readonly innerHeight: number;
+  readonly screenWidth: number;
+  readonly screenHeight: number;
   /** Browser fullscreen or kiosk mode, where there is legitimately no browser UI. */
   readonly fullscreen: boolean;
   readonly windowChrome: boolean;
@@ -101,6 +103,17 @@ export function headlessMarkers(input: HeadlessInput): HeadlessMarker[] {
     input.outerHeight === input.innerHeight
   ) {
     found.push('no_browser_ui');
+  }
+  // Headless browsers make the screen exactly the size of the page. A real desktop page is smaller
+  // than the screen (browser UI, taskbar, other windows), unless it's fullscreen.
+  if (
+    !u.mobile &&
+    !input.fullscreen &&
+    input.innerWidth > 0 &&
+    input.innerWidth === input.screenWidth &&
+    input.innerHeight === input.screenHeight
+  ) {
+    found.push('viewport_is_screen');
   }
   if (u.chromium && !u.mobile && !input.windowChrome) found.push('missing_window_chrome');
   // Desktop Chromium 94+ and Firefox 99+ always list the built-in PDF viewer.
@@ -333,6 +346,8 @@ export function probeEnvironment(s: Scope): EnvProbe {
         outerHeight: window.outerHeight,
         innerWidth: window.innerWidth,
         innerHeight: window.innerHeight,
+        screenWidth: screen.width,
+        screenHeight: screen.height,
         fullscreen:
           !!document.fullscreenElement || matchMedia('(display-mode: fullscreen)').matches,
         windowChrome: 'chrome' in window,

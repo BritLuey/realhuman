@@ -112,3 +112,15 @@ describe('headless markers', () => {
     ).toMatchObject({ bot: 'moderate', label: 'suspicious', primary: 'headless_markers' });
   });
 });
+
+describe('headless window geometry', () => {
+  it('no browser UI plus a page the size of the screen is strong-moderate evidence', () => {
+    const signals = humanSignals();
+    const session = describeSession({
+      ...signals,
+      env: { ...signals.env, headlessMarkers: ['no_browser_ui', 'viewport_is_screen'] },
+    });
+    // 1.6 + 1.2 = 2.8: still short of strong (4), so suspicious rather than bot on its own.
+    expect(session).toMatchObject({ bot: 'moderate', label: 'suspicious' });
+  });
+});

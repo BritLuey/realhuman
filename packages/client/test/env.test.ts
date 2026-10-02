@@ -76,6 +76,8 @@ describe('headlessMarkers', () => {
     outerHeight: 800,
     innerWidth: 1280,
     innerHeight: 690,
+    screenWidth: 1920,
+    screenHeight: 1080,
     fullscreen: false,
     windowChrome: true,
     plugins: 5,
@@ -111,6 +113,24 @@ describe('headlessMarkers', () => {
     expect(headlessMarkers(bare)).toEqual(['no_browser_ui']);
     expect(headlessMarkers({ ...bare, fullscreen: true })).toEqual([]);
     expect(headlessMarkers({ ...bare, ua: ANDROID, windowChrome: false })).toEqual([]);
+  });
+
+  it('flags a page exactly the size of the screen (headless default window), unless fullscreen', () => {
+    // What headless Chrome reports: a 1280×720 "screen" that the page fills completely.
+    const headless = {
+      ...real,
+      outerWidth: 1280,
+      outerHeight: 720,
+      innerWidth: 1280,
+      innerHeight: 720,
+      screenWidth: 1280,
+      screenHeight: 720,
+    };
+    expect(headlessMarkers(headless)).toEqual(['no_browser_ui', 'viewport_is_screen']);
+    expect(headlessMarkers({ ...headless, fullscreen: true })).toEqual([]);
+    expect(headlessMarkers({ ...headless, ua: ANDROID, windowChrome: false })).toEqual([]);
+    // A maximised real window: the page is smaller than the screen.
+    expect(headlessMarkers({ ...real, innerWidth: 1920, innerHeight: 960 })).toEqual([]);
   });
 
   it('does not flag empty plugins when the PDF viewer is disabled, or on mobile', () => {
