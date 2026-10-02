@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or help
+    url: https://github.com/your-org/realhuman/discussions
+    about: Ask questions and get help in GitHub Discussions.
+  - name: Security vulnerability
+    url: https://github.com/your-org/realhuman/security/advisories/new
+    about: Report security issues privately. Please don't open a public issue.

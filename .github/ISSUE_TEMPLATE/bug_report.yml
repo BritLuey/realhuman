@@ -1,0 +1,51 @@
+name: Bug report
+description: Something doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please check [Troubleshooting](https://github.com/your-org/realhuman/blob/main/docs/operations/troubleshooting.md) first.
+        **Security issues:** report privately via SECURITY.md instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Configure ...
+        2. Open ...
+        3. See ...
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Vercel, AWS CloudFront, Node.js, Other]
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Package versions
+      placeholder: '@realhuman/client 0.1.0, @realhuman/vercel 0.1.0'
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS (if relevant)
+      placeholder: Chrome 141 on Windows 11
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or decision records
+      description: With `debug: true`. Remove any `context` values and secrets.
+      render: json

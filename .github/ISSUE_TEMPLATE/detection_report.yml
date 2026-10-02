@@ -1,0 +1,35 @@
+name: Detection report
+description: A bot scored as human, or a real person scored as a bot.
+labels: [detection]
+body:
+  - type: dropdown
+    id: direction
+    attributes:
+      label: What went wrong?
+      options:
+        - A bot was scored as human (missed bot)
+        - A real person was scored as a bot (false alarm)
+    validations:
+      required: true
+  - type: textarea
+    id: client
+    attributes:
+      label: What was the client?
+      description: For bots, the tool and setup (e.g. "Playwright 1.x with stealth plugin, headless"). For people, the browser, OS, extensions and any assistive technology.
+    validations:
+      required: true
+  - type: textarea
+    id: record
+    attributes:
+      label: Decision record
+      description: The full record, with `context` values removed.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Package versions and engine
+      placeholder: '@realhuman/engine 0.2.0, engine: algorithmic'
+    validations:
+      required: true

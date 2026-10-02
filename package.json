@@ -1,0 +1,28 @@
+{
+  "name": "realhuman-monorepo",
+  "private": true,
+  "description": "realHuman: privacy-respecting bot vs. human signal for analytics. Flags bots, never blocks them.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.24.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "check": "pnpm lint && pnpm typecheck && pnpm build && pnpm test",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@changesets/cli": "^3.0.3",
+    "turbo": "^2.11.6",
+    "typescript": "^7.0.2"
+  }
+}

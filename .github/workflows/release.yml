@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # create the "Version Packages" PR and tags
+  pull-requests: write
+  id-token: write # npm trusted publishing (OIDC) and provenance
+
+jobs:
+  release:
+    name: Version or publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check
+
+      # If there are pending changesets, opens or updates a "Version Packages" PR.
+      # When that PR is merged, publishes the new versions to npm with provenance.
+      - uses: changesets/action@v1
+        with:
+          version: pnpm version-packages
+          publish: pnpm release
+          title: 'chore: version packages'
+          commit: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'
+          # Trusted publishing (OIDC) needs no token. Configure it per package on npmjs.com:
+          # Package → Settings → Trusted publishing → GitHub Actions → this repo + release.yml.
+          # Until then, you can set an NPM_TOKEN secret and uncomment the next line.
+          # NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

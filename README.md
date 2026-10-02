@@ -1,0 +1,182 @@
+<div align="center">
+
+# realHuman
+
+**Know which visits came from real people, without blocking anyone.**
+
+realHuman scores every page load from `0` (almost certainly a bot) to `1` (almost certainly a human),
+so you can filter bots out of your analytics, dashboards and reports.
+
+[![CI](https://github.com/your-org/realhuman/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/realhuman/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+[Quickstart](#quickstart) · [Documentation](docs/README.md) · [How it works](docs/getting-started/how-it-works.md) · [Privacy](docs/operations/privacy-and-compliance.md) · [Security](SECURITY.md)
+
+</div>
+
+---
+
+> [!IMPORTANT]
+> **Project status: early development.** The data formats (`@realhuman/schema`) are available now.
+> The browser SDK, scoring engine and hosting adapters are being built in the order shown in the
+> [roadmap](docs/roadmap.md). Pages describing features that haven't shipped say so at the top, so you can
+> plan an integration before it's released.
+
+## What is realHuman?
+
+Bots make up a large share of web traffic. Most of them never announce themselves, so they end up in your
+page views, conversion rates and A/B test results.
+
+realHuman adds a small script to your site. The script quietly gathers **non-identifying** signals, such
+as how the mouse moves, how typing is paced and whether the browser is being remote-controlled. Your server
+combines those signals with what it can see of the network connection and works out a score:
+
+```json
+{ "realHuman": 0.94, "verdict": "human", "confidence": 0.71 }
+```
+
+You then use that score to **filter your data**. realHuman never blocks, challenges or slows down a visitor,
+and a visitor never sees anything different.
+
+### What realHuman is *not*
+
+| realHuman is not… | Why it matters |
+|---|---|
+| **A firewall or CAPTCHA** | It never blocks or challenges anyone. Scores are for your data only. If you need blocking, use a WAF alongside it. |
+| **A tracking or fingerprinting tool** | It stores nothing on the device and creates no identifier that follows a person between visits. See [Privacy](docs/operations/privacy-and-compliance.md). |
+| **A hosted service** | It runs inside your own infrastructure (Vercel, AWS CloudFront or Node.js). Your data stays with you. |
+
+## How it works in 30 seconds
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as Visitor's browser
+    participant E as Your edge (Vercel / CloudFront)
+    participant S as realHuman engine
+    participant D as Your data pipeline
+    B->>E: Page loads, SDK asks for a session token
+    E->>S: Adds TLS fingerprint (JA4) and headers
+    S-->>B: Session token
+    Note over B: Collects signals for 1 second (configurable)
+    B->>E: Sends signal summary
+    E->>S: Adds TLS fingerprint (JA4) and headers
+    S->>D: Decision record (onDecision)
+    S-->>B: Score, if you allow it (for New Relic, Datadog…)
+```
+
+1. **Collect.** The browser SDK watches for signals from the moment the page loads.
+2. **Send.** After `flushAfterMs` (default 1000 ms) it sends a summary to *your* server, and sends one final update as the page closes.
+3. **Score.** Your server adds network evidence (the [JA4](docs/glossary.md#ja4) TLS fingerprint, user agent and headers) and works out the score with either:
+   - the **algorithmic** engine (built in, free, explainable), or
+   - the **[Jev](docs/guides/jev-engine.md)** engine (TypeSafe AI's decision model, via Vercel AI Gateway, OpenRouter or TypeSafe directly).
+4. **Deliver.** Your backend receives every decision. You can also choose to send the score back to the page for tools like New Relic.
+
+Read the full version: [How it works](docs/getting-started/how-it-works.md).
+
+## Choose your setup
+
+You make three choices. Each has a sensible default.
+
+| Choice | Options | Default | Guide |
+|---|---|---|---|
+| **Where does it run?** | Vercel · AWS CloudFront · Node.js | – | [Vercel](docs/getting-started/quickstart-vercel.md) · [CloudFront](docs/getting-started/quickstart-cloudfront.md) · [Node.js](docs/getting-started/quickstart-node.md) |
+| **Who decides?** | `algorithmic` · `jev` | `algorithmic` | [Jev engine](docs/guides/jev-engine.md) |
+| **Who gets the result?** | `server` · `client` · `both` | `server` | [Delivery modes](docs/guides/delivery-modes.md) |
+
+## Quickstart
+
+> [!NOTE]
+> The quickstart below shows the intended API. It will work once milestones M1–M3 are released. See the [roadmap](docs/roadmap.md).
+
+This example uses Next.js on Vercel. **Step 1: install the packages.**
+
+```bash
+npm install @realhuman/client @realhuman/vercel
+```
+
+**Step 2: add a secret.** Generate a random secret and save it as the environment variable `REALHUMAN_SECRET`
+in your Vercel project (*Settings → Environment Variables*):
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+**Step 3: add the server route.** Create `app/api/realhuman/[action]/route.ts`:
+
+```ts
+import { createHandlers } from '@realhuman/vercel';
+
+export const { GET, POST } = createHandlers({
+  onDecision: async (record) => {
+    // Send to your data pipeline. One record per update; the highest `seq` for a `sid` is the latest.
+    console.log(JSON.stringify(record));
+  },
+});
+```
+
+**Step 4: start the SDK in the browser.** Add this to a client component that loads on every page:
+
+```ts
+'use client';
+import { init } from '@realhuman/client';
+
+init(); // defaults: endpoint '/api/realhuman', first update after 1000 ms
+```
+
+**Step 5: deploy and check.** Open your site, wait a couple of seconds, then look at your function logs in
+the Vercel dashboard. You should see a decision record with a `realHuman` score.
+
+Full walkthroughs: [Vercel](docs/getting-started/quickstart-vercel.md) · [CloudFront](docs/getting-started/quickstart-cloudfront.md) · [Node.js](docs/getting-started/quickstart-node.md)
+
+## Packages
+
+| Package | What it does | Status |
+|---|---|---|
+| [`@realhuman/schema`](packages/schema) | Data formats and TypeScript types shared by everything else | **Available** (M0) |
+| `@realhuman/client` | Browser SDK: signal collection, honeypots, sending | Planned (M1) |
+| `@realhuman/engine` | Scoring engine, session tokens, decision records | Planned (M2) |
+| `@realhuman/vercel` | Vercel / Next.js adapter | Planned (M3) |
+| `@realhuman/aws` | AWS Lambda + CloudFront adapter and CDK construct | Planned (M4) |
+| `@realhuman/jev` | Optional Jev engine (TypeSafe, Vercel AI Gateway, OpenRouter) | Planned (M5) |
+| `@realhuman/react` | React provider and hook | Planned (M6) |
+| `@realhuman/node` | Express, Fastify and Hono adapter for self-hosting | Planned (M7) |
+
+## Documentation
+
+Everything is in [`docs/`](docs/README.md). Good places to start:
+
+- **New to this?** [What is realHuman?](docs/getting-started/what-is-realhuman.md) → [How it works](docs/getting-started/how-it-works.md) → a quickstart
+- **Building the integration?** [Configuration reference](docs/reference/configuration.md) · [Data formats](docs/reference/data-formats.md) · [Filtering your data](docs/guides/filtering-your-data.md)
+- **Reviewing it for your organisation?** [Security](docs/operations/security.md) · [Privacy & compliance](docs/operations/privacy-and-compliance.md) · [Versioning & support](docs/operations/versioning-and-support.md)
+- **Stuck?** [Troubleshooting](docs/operations/troubleshooting.md) · [Glossary](docs/glossary.md)
+
+## Privacy at a glance
+
+- **Never collected:** key values, form contents, mouse coordinates, IP addresses, canvas/audio/font fingerprints.
+- **Never stored on the device:** no cookies, localStorage or other persistent identifier.
+- **Only summaries leave the browser.** For example, "typing rhythm varied naturally", not the keys pressed.
+- **Consent-ready:** start with `init({ consent: false })` and call `grantConsent()` when your consent tool allows it.
+
+Details: [Privacy & compliance](docs/operations/privacy-and-compliance.md).
+
+## For enterprise teams
+
+| Topic | Where |
+|---|---|
+| Threat model, trusted headers, secret rotation | [Security](docs/operations/security.md) |
+| Reporting a vulnerability | [SECURITY.md](SECURITY.md) |
+| Data collected, consent, DPIA checklist, subprocessors | [Privacy & compliance](docs/operations/privacy-and-compliance.md) |
+| Bundle size and latency budgets | [Performance](docs/operations/performance.md) |
+| Semantic versioning, support windows, deprecation policy | [Versioning & support](docs/operations/versioning-and-support.md) |
+| Supply chain: npm provenance, minimal dependencies | [Versioning & support](docs/operations/versioning-and-support.md#supply-chain) |
+| Getting help | [SUPPORT.md](SUPPORT.md) |
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up the repo, run the
+tests and propose changes. Everyone taking part must follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## License
+
+[MIT](LICENSE)
