@@ -14,3 +14,7 @@ cdk.out/
 tools/bot-lab/results/
 .next/
 next-env.d.ts
+
+# Generated evaluation reports: they contain your test data
+eval-report.html
+tools/eval/*.html
