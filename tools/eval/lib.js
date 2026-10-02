@@ -51,6 +51,14 @@ export function wilson(k, n, z = 1.96) {
 }
 
 /**
+ * With zero failures in n tries, the 95% upper bound on the failure rate: 1 − 0.05^(1/n). It's about
+ * 3 ÷ n for large n (the "rule of three") and, unlike 3 ÷ n, never above 100% for small n.
+ */
+export function zeroFailureBound(n) {
+  return n > 0 ? 1 - 0.05 ** (1 / n) : null;
+}
+
+/**
  * Area under the ROC curve: the probability that a randomly chosen human scores higher than a
  * randomly chosen bot (ties count half). 1 is perfect separation, 0.5 is a coin flip.
  */
@@ -151,8 +159,7 @@ function filterOutcome(humans, bots, removes) {
   return {
     botsRemoved: wilson(removedBots, bots.length),
     humansRemoved: wilson(removedHumans, humans.length),
-    // With zero humans removed in n sessions, the 95% upper bound is about 3/n ("rule of three").
-    humansRemovedUpperBound: humans.length > 0 && removedHumans === 0 ? 3 / humans.length : null,
+    humansRemovedUpperBound: removedHumans === 0 ? zeroFailureBound(humans.length) : null,
   };
 }
 
@@ -263,8 +270,7 @@ export function evaluate(input, options = {}) {
       notConfirmedHuman: wilson(humans.length - humanVerdicts.human, humans.length),
       meanScore: mean(humanScores),
       meanConfidence: mean(humans.map((r) => r.confidence)),
-      // With zero false positives in n sessions, the 95% upper bound is about 3/n ("rule of three").
-      ruleOfThree: humans.length > 0 && humanVerdicts.bot === 0 ? 3 / humans.length : null,
+      falsePositiveUpperBound: humanVerdicts.bot === 0 ? zeroFailureBound(humans.length) : null,
       reasonsWhenNotHuman: topReasons(humans.filter((r) => labelOf(r) !== 'human')),
     },
     bots: {

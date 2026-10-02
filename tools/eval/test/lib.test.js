@@ -12,6 +12,7 @@ import {
   sessionsNeededForBound,
   truthOf,
   wilson,
+  zeroFailureBound,
 } from '../lib.js';
 
 const rec = (sid, label, realHuman, extra = {}) => ({
@@ -87,7 +88,7 @@ test('evaluate summarises labelled sessions and recomputes verdicts', () => {
   assert.equal(result.humans.n, 3);
   assert.equal(result.humans.verdicts.bot, 1);
   assert.equal(result.humans.falsePositive.k, 1);
-  assert.equal(result.humans.ruleOfThree, null);
+  assert.equal(result.humans.falsePositiveUpperBound, null);
   assert.deepEqual(result.humans.reasonsWhenNotHuman, [{ code: 'timezone_mismatch', count: 1 }]);
   assert.equal(result.bots.detected.k, 1);
   assert.equal(result.bots.passedAsHuman.k, 1);
@@ -102,11 +103,25 @@ test('evaluate summarises labelled sessions and recomputes verdicts', () => {
   assert.equal(evaluate(records, { human: 0.99, bot: 0.5 }).humans.verdicts.human, 0);
 });
 
-test('rule of three applies when no human was flagged', () => {
+test('the zero-failure bound is about 3 ÷ n, and never above 100%', () => {
   const humans = Array.from({ length: 300 }, (_, i) => rec(`h${i}`, 'human', 0.9));
   const result = evaluate(humans);
-  assert.equal(result.humans.ruleOfThree, 0.01);
+  assert.ok(Math.abs(result.humans.falsePositiveUpperBound - 0.01) < 0.0001);
   assert.equal(sessionsNeededForBound(0.01), 300);
+  assert.ok(Math.abs(zeroFailureBound(1) - 0.95) < 1e-9);
+  assert.equal(zeroFailureBound(0), null);
+});
+
+test('findings for a tiny sample: no bound, singular nouns', () => {
+  const human = { ...rec('h1', 'human', 0.9), label: 'human' };
+  const bot = { ...rec('b1', 'bot', 0.1), label: 'bot' };
+  const lines = findings(evaluate([human, bot]));
+  const text = lines.join('\n');
+  assert.doesNotMatch(text, /fewer than/);
+  assert.match(text, /removes 1 of 1 bot,/);
+  assert.match(text, /wrongly removes 0 of 1 human,/);
+  assert.match(text, /1 of 1 human session \(100\.0%\) was confirmed 'human'; 0 were 'unverified'/);
+  assert.match(text, /Only 1 human session:/);
 });
 
 test('histogram puts 1.0 in the last bin', () => {
@@ -136,7 +151,7 @@ test('labels and analytics filters', () => {
   });
   assert.equal(result.filters.standard.botsRemoved.k, 1);
   assert.equal(result.filters.standard.humansRemoved.k, 0);
-  assert.equal(result.filters.standard.humansRemovedUpperBound, 1); // 3 / 3 humans
+  assert.ok(Math.abs(result.filters.standard.humansRemovedUpperBound - 0.632) < 0.001); // 3 humans
   assert.equal(result.filters.strict.botsRemoved.k, 2);
   assert.equal(result.filters.strict.humansRemoved.k, 1);
   assert.equal(result.filters.strict.humansRemovedUpperBound, null);

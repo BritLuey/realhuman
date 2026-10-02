@@ -11,17 +11,23 @@ const esc = (s) =>
   );
 
 const rate = (w) => (w ? `${pct(w.rate)} (95% CI ${pct(w.low)}–${pct(w.high)})` : '–');
+const count = (n, noun) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+/** Below this many sessions, an upper bound from zero failures says too little to be worth stating. */
+const MIN_SESSIONS_FOR_BOUND = 30;
 
 /** One plain-English line per analytics filter. */
 function filterLine(name, outcome, humans, bots) {
   const parts = [];
   if (bots.n > 0)
-    parts.push(`removes ${outcome.botsRemoved.k} of ${bots.n} bots, ${rate(outcome.botsRemoved)}`);
+    parts.push(
+      `removes ${outcome.botsRemoved.k} of ${count(bots.n, 'bot')}, ${rate(outcome.botsRemoved)}`,
+    );
   if (humans.n > 0) {
     parts.push(
-      `wrongly removes ${outcome.humansRemoved.k} of ${humans.n} humans, ${rate(outcome.humansRemoved)}`,
+      `wrongly removes ${outcome.humansRemoved.k} of ${count(humans.n, 'human')}, ${rate(outcome.humansRemoved)}`,
     );
-    if (outcome.humansRemovedUpperBound !== null) {
+    if (outcome.humansRemovedUpperBound !== null && humans.n >= MIN_SESSIONS_FOR_BOUND) {
       parts.push(
         `with 95% confidence it removes fewer than ${pct(outcome.humansRemovedUpperBound)} of real people`,
       );
@@ -50,11 +56,11 @@ export function findings(result) {
   }
   if (humans.n > 0) {
     lines.push(
-      `${result.labels.human.human} of ${humans.n} human sessions (${pct(result.labels.human.human / humans.n)}) were confirmed 'human'; ${result.labels.human.unverified} were 'unverified' (no interaction to confirm them).`,
+      `${result.labels.human.human} of ${count(humans.n, 'human session')} (${pct(result.labels.human.human / humans.n)}) ${result.labels.human.human === 1 ? 'was' : 'were'} confirmed 'human'; ${result.labels.human.unverified} ${result.labels.human.unverified === 1 ? 'was' : 'were'} 'unverified' (no interaction to confirm them).`,
     );
     if (humans.n < 300) {
       lines.push(
-        `Only ${humans.n} human sessions: that's too few to show a false-positive rate below 1% (at least 300 sessions with no false positives are needed).`,
+        `Only ${count(humans.n, 'human session')}: that's too few to show a false-positive rate below 1% (at least 300 sessions with no false positives are needed).`,
       );
     }
   } else {
@@ -75,7 +81,7 @@ export function findings(result) {
   const missingJa4 = noJa4 ? noJa4.humans.missing + noJa4.bots.missing : 0;
   if (missingJa4 > 0) {
     lines.push(
-      `${missingJa4} of ${labelled} labelled sessions had no TLS fingerprint (JA4), so the network checks didn't run for them.`,
+      `${missingJa4} of ${count(labelled, 'labelled session')} had no TLS fingerprint (JA4), so the network checks didn't run for them.`,
     );
   }
   if (result.auc !== null) {

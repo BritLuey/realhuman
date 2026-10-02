@@ -47,8 +47,9 @@ runs apart.
 | 300 | 1% |
 | 600 | 0.5% |
 
-(This is the "rule of three": with zero failures in *n* tries, the 95% upper bound is about 3 ÷ *n*.) If some
-humans *are* flagged, the report gives a Wilson confidence interval instead.
+(This is the "rule of three": with zero failures in *n* tries, the 95% upper bound is about 3 ÷ *n*. The report
+uses the exact version, 1 − 0.05^(1/*n*), and only states it from 30 sessions up, because below that it says too
+little.) If some humans *are* flagged, the report gives a Wilson confidence interval instead.
 
 **Bots.** With 20–30 sessions per bot scenario, each scenario's detection rate is accurate to roughly ±10–15
 percentage points. `--repeat=20` in the bot lab does this.
