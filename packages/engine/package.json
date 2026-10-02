@@ -1,6 +1,6 @@
 {
   "name": "@realhuman/engine",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "realHuman scoring engine: session nonces, gates, evidence scoring and decision records. Runs anywhere with Web-standard APIs.",
   "license": "MIT",
   "type": "module",

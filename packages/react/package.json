@@ -1,6 +1,6 @@
 {
   "name": "@realhuman/react",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "React provider and hook for the realHuman browser SDK.",
   "license": "MIT",
   "type": "module",

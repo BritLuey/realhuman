@@ -1,6 +1,6 @@
 {
   "name": "@realhuman/schema",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Wire-format schemas and types shared by every realHuman package.",
   "license": "MIT",
   "type": "module",

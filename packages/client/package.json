@@ -1,6 +1,6 @@
 {
   "name": "@realhuman/client",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "realHuman browser SDK: privacy-respecting signal collection, honeypots and delivery. No runtime dependencies.",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@realhuman/vercel",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "realHuman adapter for Vercel and Next.js.",
   "license": "MIT",
   "type": "module",

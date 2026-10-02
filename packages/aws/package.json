@@ -1,6 +1,6 @@
 {
   "name": "@realhuman/aws",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "realHuman adapter for AWS Lambda behind CloudFront, with a CDK construct.",
   "license": "MIT",
   "type": "module",

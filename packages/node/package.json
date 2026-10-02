@@ -1,6 +1,6 @@
 {
   "name": "@realhuman/node",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "realHuman adapter for self-hosted Node.js (Express, Connect, node:http) and Web-standard servers (Hono, Bun, Deno).",
   "license": "MIT",
   "type": "module",
